@@ -163,6 +163,20 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     fh_dt_Fib->GetXaxis()->SetTitle("Fiber number");
     fh_dt_Fib->GetYaxis()->SetTitle("dt / ns");
 
+    // time of flight to Fibs; // HS_II
+    chistName = fName + "ToF_Fib";
+    chistTitle = fName + "ToF to fibers of this detector";
+    fh_ToF_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.);
+    fh_ToF_Fib->GetXaxis()->SetTitle("Fiber Number");
+    fh_ToF_Fib->GetYaxis()->SetTitle("Time of Flight [ns]");
+
+    // time of flight difference from ToF_Fiber to ToF_Tofwall // HS_II
+    chistName = fName + "ToF_Tofwall-ToF_Fib";
+    chistTitle = fName + "ToF to fibers of this detector substracted from ToF to Tofwall";
+    fh_dTof_WallFib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.); 
+    fh_dTof_WallFib->GetXaxis()->SetTitle("Fiber number");
+    fh_dTof_WallFib->GetYaxis()->SetTitle("dTof [ns]");
+
     return kSUCCESS;
 }
 
@@ -439,7 +453,9 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
                         }
                     }
                     Double_t eloss = sqrt(tot_mapmt * tot_spmt);
-                    Double_t t = (t_mapmt + t_spmt) / 2.;
+                    Double_t tof_Fib = (t_mapmt + t_spmt) / 2.; // HS_II
+
+                    fh_ToF_Fib->Fill(fiber_id, tof_Fib);
 
                     // cout<<"FiberID: "<<fiber_id << "  "<<(double)fiber_id - (double)numFibs<<endl;
                     // cout<<fName<<" x: "<< x << " y: "<< y << " eloss: " << eloss << " t: " << t << endl;
@@ -468,6 +484,7 @@ void R3BBunchedFiberCal2Hit::FinishTask()
     fh_ToT_MA_Fib->Write();
     fh_ToT_Single_Fib->Write();
     fh_dt_Fib->Write();
+    fh_ToF_Fib->Write();
 
     for (Int_t i = 0; i < 4; i++)
     {

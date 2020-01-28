@@ -149,6 +149,10 @@ class R3BBunchedFiberCal2Hit : public FairTask
     TH2F* fh_ToT_ToT;
     TH2F* fh_dt_Fib;
 
+    // histograms concerning ToF
+    TH2F* fh_ToF_Fib;
+    TH2F* fh_dTof_WallFib;
+
   public:
     ClassDef(R3BBunchedFiberCal2Hit, 3)
 };
