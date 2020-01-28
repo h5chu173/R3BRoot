@@ -462,7 +462,7 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
 
                     if (!fIsCalibrator)
                         new ((*fHitItems)[fNofHitItems++])
-                            R3BBunchedFiberHitData(0, x, y, eloss, t, fiber_id, t_mapmt, t_spmt, tot_mapmt, tot_spmt);
+                            R3BBunchedFiberHitData(0, x, y, eloss, tof_Fib, fiber_id, t_mapmt, t_spmt, tot_mapmt, tot_spmt);
                 }
             }
         }
