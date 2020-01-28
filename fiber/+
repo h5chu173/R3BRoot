@@ -1,0 +1,1080 @@
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
+
+// modifications ongoing by H.Schulte since 01.2020
+
+#include "R3BBunchedFiberCal2Hit.h"
+#include "R3BBunchedFiberCalData.h"
+#include "R3BBunchedFiberHitData.h"
+#include "R3BBunchedFiberHitPar.h"
+#include "R3BTCalEngine.h"
+#include "/u/schulte/software/R3BRoot/r3bdata/tofData/R3BTofdCalData.h"  // HS_II
+#include "/u/schulte/software/R3BRoot/tof/R3BTofdHitModulePar.h"  // HS_II
+#include "/u/schulte/software/R3BRoot/tof/R3BTofdHitPar.h"  // HS_II 
+#include "TH1F.h"
+#include "TH2F.h"
+#include <TClonesArray.h>
+#include <cassert>
+
+#include "FairLogger.h"
+#include "FairRootManager.h"
+#include "FairRtdbRun.h"
+#include "FairRunIdGenerator.h"
+#include "FairRuntimeDb.h"
+
+R3BBunchedFiberCal2Hit::ToT::ToT(R3BBunchedFiberCalData const* a_lead,
+                                 R3BBunchedFiberCalData const* a_trail,
+                                 Double_t a_tot)
+    : lead(a_lead)
+    , trail(a_trail)
+    , tot(a_tot)
+{
+}
+
+R3BBunchedFiberCal2Hit::R3BBunchedFiberCal2Hit(const char* a_name,
+                                               Int_t a_verbose,
+                                               enum R3BTCalEngine::CTDCVariant a_ctdc_variant,
+                                               Direction a_direction,
+                                               UInt_t a_sub_num,
+                                               UInt_t a_mapmt_per_sub,
+                                               UInt_t a_spmt_per_sub,
+                                               Bool_t a_is_calibrator)
+    : FairTask(TString("R3B") + a_name + "Cal2Hit", a_verbose)
+    , fName(a_name)
+    , fClockFreq(R3BTCalEngine::CTDC_16_BWD_150 == a_ctdc_variant ? 150 : 250)
+    , fDirection(a_direction)
+    , fSubNum(a_sub_num)
+    , fIsCalibrator(a_is_calibrator)
+    , fCalItems()
+    , fHitItems(new TClonesArray("R3BBunchedFiberHitData"))
+    , fCalPar()
+    , fHitPar()
+    , fNofHitPars()
+    , fNofHitItems()
+    , fChannelArray()
+    , fh_ToT_MA_Fib()
+    , fh_ToT_Single_Fib()
+    , fh_ToT_s_Fib()
+    , fh_ToT_ToT()
+    , fh_dt_Fib()
+    , fnEvents(0)
+    , involveToFWall(true) // set false if TofWall should not be included   // HS_II
+    , fTofdCalItem()       // HS_II
+    , fTofdHitPar()        // HS_II
+    , fNumOfTofdHitPars()  // HS_II
+    , fh_ToF_Fib() // HS_II
+    , fh_ToF_Wall() // HS_II
+    , fh_diffTof_WallFib() // HS_II
+    , fh_tMAPMT_vs_tSAPMT() // HS_II
+    , fh_tMAPMT_vs_tSAPMT_oneFib_1of4() // HS_II
+    , fh_tMAPMT_vs_tSAPMT_oneFib_2of4() // HS_II
+    , fh_tMAPMT_vs_tSAPMT_oneFib_3of4() // HS_II
+    , fh_tMAPMT_vs_tSAPMT_oneFib_4of4() // HS_II
+    , fh_tTopTofWall_vs_tSAPMT() // HS_II
+    , fh_tTopTofWall_vs_tSAPMT_oneFib_1of4() // HS_II
+    , fh_tTopTofWall_vs_tSAPMT_oneFib_2of4() // HS_II
+    , fh_tTopTofWall_vs_tSAPMT_oneFib_3of4() // HS_II
+    , fh_tTopTofWall_vs_tSAPMT_oneFib_4of4() // HS_II
+    , fh_tBotTofWall_vs_tSAPMT() // HS_II
+    , fh_tBotTofWall_vs_tSAPMT_oneFib_1of4() // HS_II
+    , fh_tBotTofWall_vs_tSAPMT_oneFib_2of4() // HS_II
+    , fh_tBotTofWall_vs_tSAPMT_oneFib_3of4() // HS_II
+    , fh_tBotTofWall_vs_tSAPMT_oneFib_4of4() // HS_II
+    , fh_tTopTofWall_vs_tMAPMT() // HS_II
+    , fh_tTopTofWall_vs_tMAPMT_oneFib_1of2() // HS_II
+    , fh_tTopTofWall_vs_tMAPMT_oneFib_2of2() // HS_II
+    , fh_tBotTofWall_vs_tMAPMT() // HS_II
+    , fh_tBotTofWall_vs_tMAPMT_oneFib_1of2() // HS_II
+    , fh_tBotTofWall_vs_tMAPMT_oneFib_2of2() // HS_II
+
+{
+    fChPerSub[0] = a_mapmt_per_sub;
+    fChPerSub[1] = a_spmt_per_sub;
+}
+
+R3BBunchedFiberCal2Hit::~R3BBunchedFiberCal2Hit()
+{
+    delete fHitItems;
+    delete fCalPar;
+    delete fTofdCalItem;
+    delete fTofdHitPar;
+}
+
+// begin HS_II
+
+
+void R3BBunchedFiberCal2Hit::IncludeOtherDetectorsFromSetup() {
+  // includes the TofWall's CalItem
+  if (involveToFWall == true) {
+    auto mgr = FairRootManager::Instance();
+    if (!mgr)
+    {
+      LOG(ERROR) << "FairRootManager not found.";
+      return;
+    }
+
+    fTofdCalItem = (TClonesArray*)mgr->GetObject("TofdCal");
+    std::cout << "new fTofdCalItem fetched! EventNr: " << fnEvents << endl;
+    if (fTofdCalItem) std::cout << "TofdCal is in :) !" << endl;
+    if (!fTofdCalItem) 
+    {
+      LOG(ERROR) << "TofdCal Branch not fround!" << endl;
+      return;
+    }
+
+    fTofdHitPar = (R3BTofdHitPar*)FairRuntimeDb::instance()->getContainer("TofdHitPar");
+    if(!fTofdHitPar) {
+      LOG(ERROR) << "No Hitparameter container for TofWall found!";
+      return;
+    }
+    else std::cout << "TofdHitPar are in! :)" << endl;
+    fNumOfTofdHitPars = fTofdHitPar->GetNumModulePar();
+    if (fNumOfTofdHitPars == 0) {
+      LOG(ERROR) << "There are no Hitparameters in container for TofWall!";
+      return;
+    }
+    else std::cout << "The number of TofdHitparameters is: " << fNumOfTofdHitPars << endl;
+  }
+}
+//end HS_II
+
+InitStatus R3BBunchedFiberCal2Hit::Init()
+{
+    auto mgr = FairRootManager::Instance();
+    if (!mgr)
+    {
+        LOG(ERROR) << "FairRootManager not found.";
+        return kERROR;
+    }
+    auto name = fName + "Cal";
+    fCalItems = (TClonesArray*)mgr->GetObject(name);
+    std::cout<< endl << name << " is now in and can be processed" << endl;
+    if (!fCalItems)
+    {
+        LOG(ERROR) << "Branch " << name << " not found.";
+        return kERROR;
+    }
+
+    if (involveToFWall == true && !fTofdCalItem && !fIsCalibrator) IncludeOtherDetectorsFromSetup();  // HS_II 
+
+    maxevent = mgr->CheckMaxEventNo();
+
+    mgr->Register(fName + "Hit", "Land", fHitItems, kTRUE);
+    // Resize per-channel info arrays.
+    for (auto side_i = 0; side_i < 2; ++side_i)
+    {
+        fChannelArray[side_i].resize(fSubNum * fChPerSub[side_i]);
+    }
+
+    if (!fIsCalibrator)
+    {
+        // Get calibration parameters if we're not a calibrator.
+        auto container = fName + "HitPar";
+        fHitPar = (R3BBunchedFiberHitPar*)FairRuntimeDb::instance()->getContainer(container);
+        if (!fHitPar)
+        {
+            LOG(ERROR) << "Could not get " << container << " container.";
+            fNofHitPars = 0;
+        }
+        else
+        {
+            fNofHitPars = fHitPar->GetNumModulePar();
+            if (0 == fNofHitPars)
+            {
+                LOG(ERROR) << "No Hit parameters in " << container << " container.";
+                fHitPar = nullptr;
+            }
+        }
+    }
+
+    // create histograms
+    TString chistName;
+    TString chistTitle;
+    // ToT MAPMT:
+    chistName = fName + "_ToT_MAPMT";
+    chistTitle = fName + " ToT of fibers";
+    fh_ToT_MA_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0., 2100., 100, 0., 41.666667);
+    fh_ToT_MA_Fib->GetXaxis()->SetTitle("Fiber number");
+    fh_ToT_MA_Fib->GetYaxis()->SetTitle("ToT / ns");
+
+    // ToT single PMT:
+    chistName = fName + "_ToT_SAPMT";
+    chistTitle = fName + " ToT of fibers";
+    fh_ToT_Single_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0., 2100., 100, 0., 100.);
+    fh_ToT_Single_Fib->GetXaxis()->SetTitle("Fiber number");
+    fh_ToT_Single_Fib->GetYaxis()->SetTitle("ToT / ns");
+
+    // ToT SAPMT:
+    for (Int_t i = 0; i < 4; i++)
+    {
+        char number[15];
+        snprintf(number, sizeof(number), "%d", i);
+        chistName = fName + "_ToT_SAPMT" + number;
+        chistTitle = fName + " ToT of single PMTs " + number;
+        fh_ToT_s_Fib[i] = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0., 2100., 100, 0., 100.);
+        fh_ToT_s_Fib[i]->GetXaxis()->SetTitle("Fiber number");
+        fh_ToT_s_Fib[i]->GetYaxis()->SetTitle("ToT / ns");
+    }
+
+    // ToT vs ToT SPMT:
+    chistName = fName + "_ToT_ToT";
+    chistTitle = fName + " ToT vs ToT of single PMTs";
+    fh_ToT_ToT = new TH2F(chistName.Data(), chistTitle.Data(), 1000, 0., 100., 1000, 0., 100.);
+    fh_ToT_ToT->GetXaxis()->SetTitle("SPMT 1");
+    fh_ToT_ToT->GetYaxis()->SetTitle("SPMT 2");
+
+    // time difference SPMT - MAPMT:
+    chistName = fName + "_dt";
+    chistTitle = fName + " dt of fibers";
+    fh_dt_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0., 2100., 1200, -600., 600.);
+    fh_dt_Fib->GetXaxis()->SetTitle("Fiber number");
+    fh_dt_Fib->GetYaxis()->SetTitle("dt / ns");
+
+    // begin HS_II
+    // time of flight to Fibs
+    chistName = fName + "_ToF_Fib";
+    chistTitle = fName + " ToF to fibers of this detector";
+    fh_ToF_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 1000, -10000., 10000.);
+    fh_ToF_Fib->GetXaxis()->SetTitle("Fiber Number");
+    fh_ToF_Fib->GetYaxis()->SetTitle("Time of Flight [ns]");
+    
+    // time of flight to TofWall
+    chistName  = fName + "Hits_on_ToF_TofWall";
+    chistTitle = fName + " ToF to TofWall of this hits in this fib det's hits";
+    fh_ToF_Wall = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 1000, -100000., 100000.);
+    fh_ToF_Wall->GetXaxis()->SetTitle("Fiber Number");
+    fh_ToF_Wall->GetYaxis()->SetTitle("Time of flight [ns]");
+
+    // time of flight difference from ToF_Fiber to ToF_Tofwall
+    chistName = fName + "_ToF_TofWall-ToF_Fib";
+    chistTitle = fName + " ToF to fibers of this detector substracted from ToF to TofWall";
+    fh_diffTof_WallFib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 1000, -100000., 100000.); 
+    fh_diffTof_WallFib->GetXaxis()->SetTitle("Fiber number");
+    fh_diffTof_WallFib->GetYaxis()->SetTitle("difference in ToF [ns]");
+    
+    std::cout << "before the new fhs" << endl;
+    // compare time stamps of multi anode PMT and single anode PMT
+    //
+    chistName = fName + "_tMAPMT_VS_tSAPMT";
+    chistTitle = fName + " time stamp of multi anode vs single anode ones";
+    
+    std::cout << "Flag One." << endl;
+
+    fh_tMAPMT_vs_tSAPMT = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    std::cout << "Flag Two." << endl;
+    fh_tMAPMT_vs_tSAPMT->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tMAPMT_vs_tSAPMT->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+
+    // compare time stamps of multi anode PMT and single anode PMT for one (somewhat centered in an MA and an SA) fiber only
+    // four times since this is the maximum number of SAPMT occuring so far within a fib detector
+    chistName = fName + "_tMAPMT_VS_tSAPMT_one_fib_1of4";
+    chistTitle = fName + " time stamp of multi anode vs single anode ones, fib in first quarter";
+
+    std::cout << "Flag Three." << endl;
+
+    fh_tMAPMT_vs_tSAPMT_oneFib_1of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tMAPMT_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tMAPMT_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+
+    chistName = fName + "_tMAPMT_VS_tSAPMT_one_fib_2of4";
+    chistTitle = fName + " time stamp of multi anode vs single anode ones, fib in second quarter";
+    
+    std::cout << "Flag Four." << endl;
+
+    fh_tMAPMT_vs_tSAPMT_oneFib_2of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tMAPMT_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tMAPMT_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+
+    chistName = fName + "_tMAPMT_VS_tSAPMT_one_fib_3of4";
+    chistTitle = fName + " time stamp of multi anode vs single anode ones, fib in third quarter";
+    fh_tMAPMT_vs_tSAPMT_oneFib_3of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tMAPMT_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tMAPMT_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+
+    chistName = fName + "_tMAPMT_VS_tSAPMT_one_fib_4of4";
+    chistTitle = fName + " time stamp of multi anode vs single anode ones, fib in fourth quarter";
+    fh_tMAPMT_vs_tSAPMT_oneFib_4of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tMAPMT_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tMAPMT_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    
+    // compare time stamps of TofWall and single anode PMT
+    chistName = fName + "_tTopTofWall_VS_tSAPMT";
+    chistTitle = fName + " time stamp of TofWall top vs single anode ones";
+    fh_tTopTofWall_vs_tSAPMT = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tSAPMT->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tTopTofWall_vs_tSAPMT->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tSAPMT";
+    chistTitle = fName + " time stamp of TofWall bottom vs single anode ones";
+    fh_tBotTofWall_vs_tSAPMT = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tSAPMT->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tBotTofWall_vs_tSAPMT->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    // compare time stamps of TofWall and single anode PMT for one (somewhat centered in an MA and an SA) fiber only
+    // four times since this is the maximum number of SAPMT occuring so far within a fib detector
+    chistName = fName + "_tTopTofWall_VS_tSAPMT_one_fib_1of4";
+    chistTitle = fName + " time stamp of TofWall top vs single anode ones, fib in first quarter";
+    fh_tTopTofWall_vs_tSAPMT_oneFib_1of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tSAPMT_one_fib_1of4";
+    chistTitle = fName + " time stamp of TofWall bottom vs single anode ones, fib in first quarter";
+
+    std::cout << "Flag Five." << endl;
+
+    fh_tBotTofWall_vs_tSAPMT_oneFib_1of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tBotTofWall_vs_tSAPMT_oneFib_1of4->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    chistName = fName + "_tTopTofWall_VS_tSAPMT_one_fib_2of4";
+    chistTitle = fName + " time stamp of TofWall top vs single anode ones, fib in second quarter";
+    fh_tTopTofWall_vs_tSAPMT_oneFib_2of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tSAPMT_one_fib_2of4";
+    chistTitle = fName + " time stamp of TofWall bottom vs single anode ones, fib in second quarter";
+    fh_tBotTofWall_vs_tSAPMT_oneFib_2of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tBotTofWall_vs_tSAPMT_oneFib_2of4->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    chistName = fName + "_tTopTofWall_VS_tSAPMT_one_fib_3of4";
+    chistTitle = fName + " time stamp of TofWall top vs single anode ones, fib in third quarter";
+    fh_tTopTofWall_vs_tSAPMT_oneFib_3of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tSAPMT_one_fib_3of4";
+    chistTitle = fName + " time stamp of TofWall bottom vs single anode ones, fib in third quarter";
+    fh_tBotTofWall_vs_tSAPMT_oneFib_3of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tBotTofWall_vs_tSAPMT_oneFib_3of4->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    chistName = fName + "_tTopTofWall_VS_tSAPMT_one_fib_4of4";
+    chistTitle = fName + " time stamp of TofWall top vs single anode ones, fib in fourth quarter";
+    fh_tTopTofWall_vs_tSAPMT_oneFib_4of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tSAPMT_one_fib_4of4";
+    chistTitle = fName + " time stamp of TofWall bottom vs single anode ones, fib in fourth quarter";
+    fh_tBotTofWall_vs_tSAPMT_oneFib_4of4 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tSAPMT [ns]"); 
+    fh_tBotTofWall_vs_tSAPMT_oneFib_4of4->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    // compare time stamps of TofWall and multi anode PMT
+    chistName = fName + "_tTopTofWall_VS_tMAPMT";
+    chistTitle = fName + " time stamp of TofWall top vs multi anode ones";
+    fh_tTopTofWall_vs_tMAPMT = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tMAPMT->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tTopTofWall_vs_tMAPMT->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tMAPMT";
+    chistTitle = fName + " time stamp of TofWall bottom vs multi anode ones";
+    fh_tBotTofWall_vs_tMAPMT = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tMAPMT->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tBotTofWall_vs_tMAPMT->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    // compare time stamps of TofWall and multi anode PMT for one (somewhat centered in an MA and an SA) fiber only
+    // two times since this is the maximum number of MAPMT occuring so far within a fib detector
+    chistName = fName + "_tTopTofWall_VS_tMAPMT_one_fib_1of2";
+    chistTitle = fName + " time stamp of TofWall top vs multi anode ones, fib in first half";
+    fh_tTopTofWall_vs_tMAPMT_oneFib_1of2 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tMAPMT_oneFib_1of2->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tTopTofWall_vs_tMAPMT_oneFib_1of2->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tMAPMT_one_fib_1of2";
+    chistTitle = fName + " time stamp of TofWall bottom vs multi anode ones, fib in first half";
+
+    std::cout << "Flag Six." << endl;
+
+    fh_tBotTofWall_vs_tMAPMT_oneFib_1of2 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tMAPMT_oneFib_1of2->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tBotTofWall_vs_tMAPMT_oneFib_1of2->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    chistName = fName + "_tTopTofWall_VS_tMAPMT_one_fib_2of2";
+    chistTitle = fName + " time stamp of TofWall top vs multi anode ones, fib in second half";
+
+    std::cout << "Flag Seven." << endl;
+
+    fh_tTopTofWall_vs_tMAPMT_oneFib_2of2 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tTopTofWall_vs_tMAPMT_oneFib_2of2->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tTopTofWall_vs_tMAPMT_oneFib_2of2->GetXaxis()->SetTitle("tTopTofWall [ns]"); 
+
+    chistName = fName + "_tBotTofWall_VS_tMAPMT_one_fib_2of2";
+    chistTitle = fName + " time stamp of TofWall bottom vs multi anode ones, fib in second half";
+
+    std::cout << "Flag Eight." << endl;
+
+    fh_tBotTofWall_vs_tMAPMT_oneFib_2of2 = new TH2F(chistName.Data(), chistTitle.Data(), 10000, 0, 40000, 10000, 0, 40000);
+    fh_tBotTofWall_vs_tMAPMT_oneFib_2of2->GetXaxis()->SetTitle("tMAPMT [ns]"); 
+    fh_tBotTofWall_vs_tMAPMT_oneFib_2of2->GetXaxis()->SetTitle("tBotTofWall [ns]"); 
+
+    std::cout << "Final Flag." << endl;
+    // end HS_II
+    
+    return kSUCCESS;
+}
+
+InitStatus R3BBunchedFiberCal2Hit::ReInit() { return kSUCCESS; }
+
+void R3BBunchedFiberCal2Hit::SetParContainers()
+{
+    // container needs to be created in tcal/R3BTCalContFact.cxx AND R3BTCal needs
+    // to be set as dependency in CMakelists.txt (in this case in the tof directory)
+    fCalPar = (R3BBunchedFiberHitPar*)FairRuntimeDb::instance()->getContainer(fName + "HitPar");
+    if (!fCalPar)
+    {
+        LOG(ERROR) << "R3BTofdCal2Hit::Init() Couldn't get " << fName << "HitPar. ";
+    }
+}
+
+void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
+{
+  std::cout<<"in exec"<<endl;
+    //	if(fnEvents/10000.==(int)fnEvents/10000) cout<<"Events: "<<fnEvents<<"         \r"<<std::flush;
+    if (fnEvents / 100000. == (int)fnEvents / 100000)
+        std::cout << "\rEvents: " << fnEvents << " / " << maxevent << " (" << (int)(fnEvents * 100. / maxevent)
+                  << " %) " << std::flush;
+    for (auto side_i = 0; side_i < 2; ++side_i)
+    {
+        // Clear local helper containers.
+        auto& array = fChannelArray[side_i];
+        for (auto it = array.begin(); array.end() != it; ++it)
+        {
+            it->lead_list.clear();
+            it->tot_list.clear();
+        }
+    }
+
+    // cout<<"multihit"<<endl;
+
+    auto const c_period = 4096e3 / fClockFreq;
+    size_t cal_num = fCalItems->GetEntriesFast();
+    
+    std::vector<double> FibHitToFs;  // HS_II
+    //if (involveToFWall == false) FibHitToFs.~vector();
+
+    // Find multi-hit ToT for every channel.
+    // The easiest safe way to survive ugly cases is to record all
+    // leading edges per channel, and then pair up with whatever
+    // trailing we have.
+    // Not super efficient, but shouldn't crash if the data is not
+    // perfect.
+    unsigned n_lead = 0;
+    unsigned n_trail = 0;
+    int s_mult = 0;
+    for (size_t j = 0; j < cal_num; ++j)
+    {
+        auto cur_cal = (R3BBunchedFiberCalData const*)fCalItems->At(j);
+        if (cur_cal->IsLeading())
+        {
+            ++n_lead;
+            auto side_i = cur_cal->IsMAPMT() ? 0 : 1;
+            auto ch_i = cur_cal->GetChannel() - 1;
+            auto& channel = fChannelArray[side_i].at(ch_i);
+            channel.lead_list.push_back(cur_cal);
+            if (side_i == 1)
+                s_mult++;
+        }
+        else
+        {
+            ++n_trail;
+        }
+    }
+    if (n_lead != n_trail)
+    {
+        //    return;
+    }
+    for (size_t j = 0; j < cal_num; ++j)
+    {
+        auto cur_cal = (R3BBunchedFiberCalData const*)fCalItems->At(j);
+        if (cur_cal->IsTrailing())
+        {
+            auto side_i = cur_cal->IsMAPMT() ? 0 : 1;
+            auto ch_i = cur_cal->GetChannel() - 1;
+            auto& channel = fChannelArray[side_i].at(ch_i);
+            if (channel.lead_list.empty())
+            {
+                continue;
+            }
+            auto lead = channel.lead_list.front();
+            auto tot = fmod(cur_cal->GetTime_ns() - lead->GetTime_ns() + c_period, c_period);
+            if (tot < 1000)
+            {
+                // if (side_i==0) tot -= 9.;//taken out for the moment MH
+
+                channel.tot_list.push_back(ToT(lead, cur_cal, tot));
+                channel.lead_list.pop_front();
+            }
+        }
+    }
+
+    // cout<<"finished list"<<endl;
+
+    double s1 = 99.;
+    double s2 = 99.;
+    double s3 = 99.;
+    double s4 = 99.;
+    int single = 0;
+
+    double tot_mapmt_max = -1;
+    double tot_spmt_max = -1;
+    int tot_mapmt_max_fiber_id = 0;
+    int tot_spmt_max_fiber_id = 0;
+
+    // cout<<"permutations"<<endl;
+
+    double arrTimeStampsPMTs[2*1025];
+    for (int iFill = 0; iFill < 2*1025; iFill++) {
+      std::cout << "bis zum array anlegen!" << endl;
+      arrTimeStampsPMTs[iFill] = -100000000.;
+      //std::cout << "mach alles -100000000, Stelle: " << iFill << endl;
+      
+    }
+    std::cout << "Ist Rausgejumped--------------------------------------------------------------------------------------------" << endl;
+
+    // Make every permutation to create fibers.
+    auto const& mapmt_array = fChannelArray[0];
+    auto const& spmt_array = fChannelArray[1];
+    for (auto it_mapmt = mapmt_array.begin(); mapmt_array.end() != it_mapmt; ++it_mapmt)
+    {
+        auto const& mapmt = *it_mapmt;
+        for (auto it_mapmt_tot = mapmt.tot_list.begin(); mapmt.tot_list.end() != it_mapmt_tot; ++it_mapmt_tot)
+        {
+            auto const& mapmt_tot = *it_mapmt_tot;
+            for (auto it_spmt = spmt_array.begin(); spmt_array.end() != it_spmt; ++it_spmt)
+            {
+                auto const& spmt = *it_spmt;
+                for (auto it_spmt_tot = spmt.tot_list.begin(); spmt.tot_list.end() != it_spmt_tot; ++it_spmt_tot)
+                {
+                    auto const& spmt_tot = *it_spmt_tot;
+
+                    // Check that the combo is inside one sub-det.
+                    auto mapmt_sub_id = (mapmt_tot.lead->GetChannel() - 1) / fChPerSub[0];
+                    auto spmt_sub_id = (spmt_tot.lead->GetChannel() - 1) / fChPerSub[1];
+                    if (mapmt_sub_id != spmt_sub_id)
+                    {
+                        continue;
+                    }
+
+                    /*
+                     * How to get a fiber ID for a fiber detector defined as:
+                     *  SubNum = 2
+                     *  MAPMT = 256
+                     *  SPMT = 2
+                     * This means we'll receive 512 MAPMT channels as 1..512, and 4 SPMT
+                     * channels, but the first half (sub-detector) is completely
+                     * decoupled from the second half. The sequence of all fibers in
+                     * order is then, as (MAPMT,SPMT)-pairs:
+                     *  (1,1), (1,2), (2,1), ... (256,1), (256,2),
+                     *  (257,3), (257,4), (258,3), ... (512,3), (512,4)
+                     */
+
+                    auto fiber_id = (mapmt_tot.lead->GetChannel() - 1) * fChPerSub[1] +
+                                    ((spmt_tot.lead->GetChannel() - 1) % fChPerSub[1]) + 1;
+                    auto fiber_id_ch = (mapmt_tot.lead->GetChannel() - 1) * fChPerSub[1] + 1;
+                    single = spmt_tot.lead->GetChannel();
+
+                    /*
+                    cout<<"MA Fiber ch: "<<mapmt_tot.lead->GetChannel()<<" Fiber: "<< fiber_id<<" ToT: "<<
+                    mapmt_tot.tot<<endl; cout<<"S channels: "<<spmt_tot.lead->GetChannel()<<" ToT: "<<spmt_tot.tot<<"
+                    mult: "<<s_mult<<endl;
+                    */
+                    // TODO: Use it_sub->direction to find real life coordinates.
+
+                    // Fix fiber installation mistakes.
+                    fiber_id = FixMistake(fiber_id);
+
+                    // Calibrate hit fiber.
+                    auto tot_mapmt = mapmt_tot.tot;
+                    auto tot_spmt = spmt_tot.tot;
+                    Double_t t_mapmt = mapmt_tot.lead->GetTime_ns();
+                    Double_t t_spmt = spmt_tot.lead->GetTime_ns();
+
+                    // "Push" two times in the same clock cycle:
+                    // MAPMT coarse counter has 4096 channels with 1000/150=6.67 ns or 4 ns each
+                    // SPMT coarse counter has 2048 channels with 5 ns each
+                    Double_t dtime = t_spmt - t_mapmt;
+                    while (dtime > 256. / 2. * 1000. / fClockFreq)
+                    {
+                        t_mapmt += 256. * 1000. / fClockFreq;
+                        dtime = t_spmt - t_mapmt;
+                        // cout<<"dtime1 "<<dtime<<endl;
+                    }
+                    while (dtime < -256. / 2. * 1000. / fClockFreq)
+                    {
+                        t_mapmt -= 256. * 1000. / fClockFreq;
+                        dtime = t_spmt - t_mapmt;
+                        // cout<<"dtime2 "<<dtime<<endl;
+                    }
+
+                    // histogram for offset determination
+                    if (fIsCalibrator)
+                        fh_dt_Fib->Fill(fiber_id, t_spmt - t_mapmt);
+
+                    // Apply calibration.
+                    Double_t gainMA = 10.;
+                    Double_t gainS = 10.;
+                    Double_t offset1 = 0.;
+                    Double_t offset2 = 0.;
+
+                    if (!fIsCalibrator && fHitPar)
+                    {
+                        R3BBunchedFiberHitModulePar* par = fHitPar->GetModuleParAt(fiber_id);
+                        if (par)
+                        {
+                            gainMA = par->GetGainMA();
+                            gainS = par->GetGainS();
+                            offset1 = par->GetOffset1();
+                            offset2 = par->GetOffset2();
+                        }
+                    }
+                    // cout<<"offset "<<offset1<<"  "<<offset2<<endl;
+                    // cout<<"before "<<t_spmt<<"  "<<t_mapmt<<endl;
+
+                    tot_mapmt *= 10. / gainMA;
+                    tot_spmt *= 10. / gainS;
+                    t_mapmt += offset1;
+                    t_spmt += offset2;
+
+                    // cout<<"after "<<t_spmt<<"  "<<t_mapmt<<endl;
+
+                    if (!fIsCalibrator)
+                        fh_dt_Fib->Fill(fiber_id, t_spmt - t_mapmt);
+
+                    /*
+                    if (tot_mapmt > tot_mapmt_max) {
+                      tot_mapmt_max = tot_mapmt;
+                      tot_mapmt_max_fiber_id = fiber_id;
+
+                      tot_spmt_max = tot_spmt;
+                      tot_spmt_max_fiber_id = fiber_id;
+
+                    }
+                    */
+                    /*
+                    if (tot_spmt > tot_spmt_max) {
+                      tot_spmt_max = tot_spmt;
+                      tot_spmt_max_fiber_id = fiber_id;
+                    }
+                    */
+
+                    // Fill histograms for gain match, and for debugging.
+                    fh_ToT_MA_Fib->Fill(fiber_id, tot_mapmt);
+                    if (s_mult > 0)
+                    {
+                        fh_ToT_Single_Fib->Fill(fiber_id, tot_spmt);
+                        fh_ToT_s_Fib[single - 1]->Fill(fiber_id, tot_spmt);
+                    }
+
+                    Int_t numFibs = fSubNum * fChPerSub[0] * fChPerSub[1];
+                    Double_t x = -10000.;
+                    Double_t y = -10000.;
+
+                    if (fName == "Fi10" || fName == "Fi11" || fName == "Fi12" || fName == "Fi13")
+                    {
+                        if (fDirection == VERTICAL)
+                        {
+                            x = ((double)fiber_id - (double)numFibs / 2) * 0.05; // in cm
+                            y = (t_spmt - t_mapmt) * 3.;
+                        }
+                        else
+                        {
+                            x = (t_spmt - t_mapmt) * 3.;
+                            y = ((double)fiber_id - (double)numFibs / 2) * 0.05; // in cm
+                        }
+                    }
+                    if (fName == "Fi1a" || fName == "Fi1b" || fName == "Fi2a" || fName == "Fi2b" || fName == "Fi3a" ||
+                        fName == "Fi3b")
+                    {
+                        if (fDirection == VERTICAL)
+                        {
+                            x = ((double)fiber_id - (double)numFibs / 2) * 0.021; // in cm
+                            y = (t_spmt - t_mapmt) * 3.;
+                        }
+                        else
+                        {
+                            x = (t_spmt - t_mapmt) * 3.;
+                            y = ((double)fiber_id - (double)numFibs / 2) * 0.021; // in cm
+                        }
+                    }
+                    Double_t eloss = sqrt(tot_mapmt * tot_spmt);
+
+                    // begin HS_II
+
+                    fh_tMAPMT_vs_tSAPMT->Fill(t_spmt, t_mapmt);
+                    if (fiber_id == 256) fh_tMAPMT_vs_tSAPMT_oneFib_1of4->Fill(t_spmt, t_mapmt);
+                    if (fiber_id == 257) fh_tMAPMT_vs_tSAPMT_oneFib_2of4->Fill(t_spmt, t_mapmt);
+                    if (fiber_id == 768) fh_tMAPMT_vs_tSAPMT_oneFib_3of4->Fill(t_spmt, t_mapmt);
+                    if (fiber_id == 769) fh_tMAPMT_vs_tSAPMT_oneFib_4of4->Fill(t_spmt, t_mapmt);
+                    arrTimeStampsPMTs[fiber_id] = t_spmt;
+                    arrTimeStampsPMTs[fiber_id+1024+1] = t_mapmt;
+
+                    double tof_Fib = (t_mapmt + t_spmt) / 2.;
+                    fh_ToF_Fib->Fill(fiber_id, tof_Fib);
+
+                    if (involveToFWall == true) {
+                      FibHitToFs.push_back(tof_Fib);
+                      FibHitToFs.push_back(fiber_id);
+                    }
+                    // end HS_II
+
+
+                    // cout<<"FiberID: "<<fiber_id << "  "<<(double)fiber_id - (double)numFibs<<endl;
+                    // cout<<fName<<" x: "<< x << " y: "<< y << " eloss: " << eloss << " t: " << t << endl;
+
+                    if (!fIsCalibrator)
+                        new ((*fHitItems)[fNofHitItems++])
+                            R3BBunchedFiberHitData(0, x, y, eloss, tof_Fib, fiber_id, t_mapmt, t_spmt, tot_mapmt, tot_spmt);
+                }
+            }
+        }
+    }
+    fh_ToT_ToT->Fill(s1, s2);
+
+    // begin HS_II
+    if (involveToFWall == true) { 
+      UseTofWall(cal_num, FibHitToFs, arrTimeStampsPMTs);
+    }
+    // end HS_II
+   
+    FibHitToFs.clear();
+    delete arrTimeStampsPMTs;
+    fnEvents++;
+
+    // cout<<"end exec"<<endl;
+}
+
+void R3BBunchedFiberCal2Hit::FinishEvent()
+{
+    fHitItems->Clear();
+    fNofHitItems = 0;
+}
+
+void R3BBunchedFiberCal2Hit::FinishTask()
+{
+    fh_ToT_MA_Fib->Write();
+    fh_ToT_Single_Fib->Write();
+    fh_dt_Fib->Write();
+    fh_ToF_Fib->Write();
+    fh_ToF_Wall->Write();
+    fh_diffTof_WallFib->Write();
+    fh_tMAPMT_vs_tSAPMT->Write();
+    fh_tMAPMT_vs_tSAPMT_oneFib_1of4->Write();
+    fh_tMAPMT_vs_tSAPMT_oneFib_2of4->Write();
+    fh_tMAPMT_vs_tSAPMT_oneFib_3of4->Write();
+    fh_tMAPMT_vs_tSAPMT_oneFib_4of4->Write();
+    fh_tTopTofWall_vs_tSAPMT            ->Write(); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_1of4->Write(); 
+    fh_tTopTofWall_vs_tSAPMT_oneFib_2of4->Write();
+    fh_tTopTofWall_vs_tSAPMT_oneFib_3of4->Write();
+    fh_tTopTofWall_vs_tSAPMT_oneFib_4of4->Write();
+    fh_tTopTofWall_vs_tMAPMT            ->Write(); 
+    fh_tTopTofWall_vs_tMAPMT_oneFib_1of2->Write();
+    fh_tTopTofWall_vs_tMAPMT_oneFib_2of2->Write();
+    fh_tBotTofWall_vs_tSAPMT            ->Write(); 
+    fh_tBotTofWall_vs_tSAPMT_oneFib_1of4->Write();
+    fh_tBotTofWall_vs_tSAPMT_oneFib_2of4->Write();
+    fh_tBotTofWall_vs_tSAPMT_oneFib_3of4->Write();
+    fh_tBotTofWall_vs_tSAPMT_oneFib_4of4->Write();
+    fh_tBotTofWall_vs_tMAPMT            ->Write(); 
+    fh_tBotTofWall_vs_tMAPMT_oneFib_1of2->Write();
+    fh_tBotTofWall_vs_tMAPMT_oneFib_2of2->Write();
+
+    for (Int_t i = 0; i < 4; i++)
+    {
+        fh_ToT_s_Fib[i]->Write();
+    }
+    fh_ToT_ToT->Write();
+
+    if (fIsCalibrator)
+    {
+        R3BBunchedFiberHitModulePar* mpar;
+
+        UInt_t max = N_FIBER_MAX;
+        if (fh_ToT_MA_Fib->GetNbinsX() < N_FIBER_MAX)
+            max = fh_ToT_MA_Fib->GetNbinsX();
+
+        for (UInt_t i = 1; i <= max; i++)
+        {
+            mpar = new R3BBunchedFiberHitModulePar();
+            mpar->SetFiber(i);
+            fCalPar->AddModulePar(mpar);
+        }
+
+        // time offset
+        for (UInt_t i = 1; i <= max; i++)
+        {
+            TH1D* proj = fh_dt_Fib->ProjectionY("", i + 1, i + 1, 0);
+            R3BBunchedFiberHitModulePar* par = fCalPar->GetModuleParAt(i);
+            par->SetOffset1(0.5 * proj->GetBinCenter(proj->GetMaximumBin()));
+            par->SetOffset2(-0.5 * proj->GetBinCenter(proj->GetMaximumBin()));
+
+            cout << "MA fiber: " << i << " offset: " << 0.5 * proj->GetBinCenter(proj->GetMaximumBin()) << endl;
+        }
+
+        for (UInt_t i = 1; i <= max; i++)
+        {
+            TH1D* proj = fh_ToT_MA_Fib->ProjectionY("", i + 1, i + 1, 0);
+            for (UInt_t j = proj->GetNbinsX() - 2; j > 2; j--)
+            {
+                if (j == 2)
+                {
+                    // could not find maximum
+                }
+                if (proj->GetBinContent(j) > proj->GetMaximum() / 100.)
+                {
+                    R3BBunchedFiberHitModulePar* par = fCalPar->GetModuleParAt(i);
+                    par->SetGainMA(proj->GetBinCenter(j));
+                    // cout<<"MA fiber: "<< i<<" par: "<<proj->GetBinCenter(j)<<endl;
+                    // par->SetGainMA(j - 1);
+                    cout << "MA fiber: " << i << " par: " << proj->GetBinCenter(j) << endl;
+                    break;
+                }
+            }
+        }
+
+        for (UInt_t i = 1; i <= max; i++)
+        {
+            TH1D* proj = fh_ToT_Single_Fib->ProjectionY("", i + 1, i + 1, 0);
+            for (UInt_t j = proj->GetNbinsX() - 2; j > 2; j--)
+            {
+                if (j == 2)
+                {
+                    // could not find maximum
+                }
+
+                if (proj->GetBinContent(j) > proj->GetMaximum() / 10.)
+                {
+                    R3BBunchedFiberHitModulePar* par = fCalPar->GetModuleParAt(i);
+                    par->SetGainS(proj->GetBinCenter(j));
+                    // cout<<"S fiber: "<< i<<" par: "<<proj->GetBinCenter(j)<<endl;
+                    // par->SetGainS(j - 1);
+                    cout << "S fiber: " << i << " par: " << proj->GetBinCenter(j) << endl;
+                    break;
+                }
+            }
+        }
+
+        fCalPar->setChanged();
+    }
+}
+
+// begin HS_II
+void R3BBunchedFiberCal2Hit::UseTofWall(size_t& cal_num, std::vector<double>& FibHitToFs, double arrTimeStampsPMTs[2*1025]) { 
+  //std::cout << "begin of 'UseTofWall'" << endl;
+  //std::cout<< "Event number: " << fnEvents << ", detName: " << fName << endl;
+  size_t tof_hits = fTofdCalItem->GetEntriesFast();
+
+  /*
+  if (cal_num > 0 && tof_hits > 0) {
+    std::cout << endl << "-------------------------------------------------------------------------------------" << endl;
+    std::cout << endl << "Entries at TofWall: " << tof_hits <<" Entries from det. " << fName <<": " << cal_num << endl; 
+    std::cout << "Event number is " << fnEvents << endl;
+    std::cout << "-------------------------------------------------------------------------------------" << endl << endl;
+  }
+  else {
+    std::cout << endl << "--------------------------------------------------------------------------------------" << endl;
+    std::cout << "At least the TofWall CalItem or the fib detecor's CalItem contains no entries! The number of entries in TofWall CalItem is: " << tof_hits << " and the number of entries at the fib detector CalItem is: " << cal_num << endl;
+    std::cout << "Event number is " << fnEvents << endl;
+    std::cout << "-------------------------------------------------------------------------------------" << endl << endl;
+    return;
+  }
+  */
+
+
+  // calculation of tof from TofWall; looked up in and done like in 'R3BTofdCal2Hit.cxx'
+  const double c_range_ns = 2048 * 5;
+  const double c_bar_coincidence_ns = 20;  // both c_something parameters are in nanoseconds
+  double timeP0 = 0.;
+  const int fNofPlanes = 4;
+  const int fPaddlesPerPlane = 44;
+  struct Entry
+  {
+    std::vector<R3BTofdCalData*> top;
+    std::vector<R3BTofdCalData*> bot;
+  };
+  std::map<size_t, Entry> bar_map;
+  for (int ihit = 0; ihit < tof_hits; ihit++) { 
+    auto* hit = (R3BTofdCalData*)fTofdCalItem->At(ihit);
+    size_t idx = hit->GetDetectorId() * fPaddlesPerPlane * hit->GetBarId();
+    auto ret = bar_map.insert(std::pair<size_t, Entry>(idx, Entry()));
+    auto& vec = 1 == hit->GetSideId() ? ret.first->second.top : ret.first->second.bot;
+    vec.push_back(hit);
+  }
+
+  for (auto iter = bar_map.begin(); iter != bar_map.end(); iter++) {
+    //std::vector<R3BTofdCalData>* ptr_top_vec;
+    //std::vector<R3BTofdCalData>* ptr_bot_vec;
+    //ptr_top_vec = *(iter->second.top);
+    //ptr_bot_vec = *(iter->second.bot);
+    auto const& top_vec = iter->second.top;
+    auto const& bot_vec = iter->second.bot;
+    size_t top_i = 0;    
+    size_t bot_i = 0;
+    for (; top_i < top_vec.size() && bot_i < bot_vec.size();) {
+      for (int step_timeStamps = 1; step_timeStamps < 1025; step_timeStamps++) {
+        if (arrTimeStampsPMTs[step_timeStamps] != -100000000.) {
+          auto top = top_vec.at(top_i);
+          auto bot = bot_vec.at(bot_i);
+          auto top_ns = top->GetTimeLeading_ns();
+          auto bot_ns = bot->GetTimeLeading_ns();
+          compareTimeStamps(top_ns, bot_ns, arrTimeStampsPMTs[step_timeStamps], arrTimeStampsPMTs[step_timeStamps+1024+1], step_timeStamps);
+        }
+      }
+    }
+  }
+
+  std::vector<double> ToFs_TofWall;
+
+  //std::cout << " Event number is currently: " << fnEvents << endl;
+  //int check_for_iter_counter = 0;
+  for (auto iter = bar_map.begin(); iter != bar_map.end(); iter++) {
+reset:
+    //std::cout << "In der for-iter-loop; Anfang" << endl;
+    //std::cout <<"size of bar_map is: " << bar_map.size() << endl;
+    auto const& top_vec = iter->second.top;
+    auto const& bot_vec = iter->second.bot;
+    size_t top_i = 0;    
+    size_t bot_i = 0;
+    //check_for_iter_counter++;
+    //std::cout << "number of iterations is: " << check_for_iter_counter << endl;
+    //std::cout << "size of top_vec: " << top_vec.size() <<" and ot bot_vec: " << bot_vec.size() << endl;
+    //std::cout << "-------------------------------------------------------------------------------------" << endl << endl;
+
+    for (; top_i < top_vec.size() && bot_i < bot_vec.size();) {
+      //std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl << "top_i is: " << top_i << "and bot_i is: " << bot_i << endl << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl << endl; 
+      auto top = top_vec.at(top_i);
+      auto bot = bot_vec.at(bot_i);
+      auto top_ns = top->GetTimeLeading_ns();
+      auto bot_ns = bot->GetTimeLeading_ns();
+      auto dt = top_ns - bot_ns;
+      auto dt_mod = fmod(dt + c_range_ns, c_range_ns);
+      if (dt < 0) {
+      dt_mod -= c_range_ns;
+      }
+      //std::cout << "dt value: " << dt << " and dt_mod value: " << dt_mod << endl;
+      if (std::abs(dt_mod) < c_bar_coincidence_ns) {
+        int iPlane = top->GetDetectorId();
+        int iBar   = top->GetBarId();
+        if (iPlane > fNofPlanes) {
+          LOG(ERROR) << "R3BBunchedFiberCal2Hit::Exec: More detectors than expected! Det: " << iPlane << " allowed are 1..." << fNofPlanes;
+          //std::cout << "R3BBunchedFiberCal2Hit::Exec: More detectors than expected! Det: " << iPlane << " allowed are 1..." << fNofPlanes;
+          continue;
+        }
+        if (iBar > fPaddlesPerPlane) {
+          LOG(ERROR) << "R3BBunchedFiberCal2Hit::Exec: More bars than expected! Bar: " << iBar << " allowed are 1..." << fPaddlesPerPlane;
+          //std::cout << "R3BBunchedFiberCal2Hit::Exec: More bars than expected! Bar: " << iBar << " allowed are 1..." << fPaddlesPerPlane;
+          continue;
+        }
+        
+        //auto top_tot = fmod(top->GetTimeTrailing_ns() - top_ns + c_range_ns, c_range_ns);
+        //auto bot_tot = fmod(bot->GetTimeTrailing_ns() - bot_ns + c_range_ns, c_range_ns);
+        //top_ns = top_ns - walk(top_tot);
+        //bot_ns = bot_ns - walk(bot_tot);
+        R3BTofdHitModulePar* par = fTofdHitPar->GetModuleParAt(iPlane, iBar);
+        if (!par) {
+          LOG(INFO) << "R3BBunchedFiberCal2Hit::Exec: No Hitparameter for TofWall found! Plane: " << iPlane << " Bar: " << iBar;
+          //std::cout << "R3BBunchedFiberCal2Hit::Exec: No Hitparameter for TofWall found! Plane: " << iPlane << " Bar: " << iBar;
+        continue;
+        }
+        
+        auto ToF = (top_ns - bot_ns) / 2. - par->GetSync();
+        if (timeP0 == 0) timeP0 = ToF;
+        if (ToF - timeP0 < -3000.) ToF += c_range_ns;
+        if (ToF - timeP0 > 3000.) {
+          timeP0 = ToF;
+          iter = bar_map.begin();
+          ToFs_TofWall.clear();
+          //std::cout << "Reset will be done!" << endl;
+          //std::cout << "ToFs_TofWall contains " << ToFs_TofWall.size() << " elements" << endl;
+          goto reset;
+        }
+        ToFs_TofWall.push_back(ToF);
+        ++top_i;
+        ++bot_i;
+      }
+      else if (dt < 0 && dt > -c_range_ns/2) ++top_i;
+      else ++bot_i;
+    }
+  }
+  size_t entries_in_ToFs_TofWall = ToFs_TofWall.size();
+  //if (tof_hits != entries_in_ToFs_TofWall) std::cout << "Buuuuuuuuuuuuuuuulllllllllshit! In ToFs_TofWall are " << entries_in_ToFs_TofWall << " elements while number tof hits is " << tof_hits << " and by the way the size of bar_map is " << bar_map.size() <<  endl;
+  //if (entries_in_ToFs_TofWall != bar_map.size()) {
+    //ofstream saveEvNr;
+    //saveEvNr.open("/u/schulte/testStation/EventNrsOfInterest.txt", ios::out | ios::app);
+    //saveEvNr << fnEvents << "\n" << "ToFs_TofWall: " << entries_in_ToFs_TofWall << ", bar_map size:" << bar_map.size() << "hits on TofWall: " << tof_hits << "\n";
+    //saveEvNr.close();
+  //}
+  for (int step_Wall = 0; step_Wall < ToFs_TofWall.size(); step_Wall++) {
+    for (int step_Fib = 0; step_Fib < FibHitToFs.size()/2; step_Fib++) {
+      double tof_Fib = FibHitToFs.at(step_Fib*2);
+      int fiber_id = FibHitToFs.at(step_Fib*2+1);
+      double tof_ToFWall = ToFs_TofWall.at(step_Wall);
+      double diff_tof = tof_ToFWall - tof_Fib;
+      //std::cout << "ToF is " << tof_ToFWall << " and tof_Fib is " << tof_Fib << " and diff_tof is " << diff_tof << endl;
+      fh_ToF_Wall->Fill(fiber_id, tof_ToFWall);
+      fh_diffTof_WallFib->Fill(fiber_id, diff_tof);
+    }
+  }
+  //std::cout << "End of 'UseTofWall' subroutine." << endl;
+  ToFs_TofWall.clear();
+}
+
+//void R3BBunchedFiberCal2Hit::compareTimeStamps(const std::vector<R3BTofdCalData*> top_vec, const std::vector<R3BTofdCalData*> bot_vec, double arrTimeStampsPMTs[2*1025]) {
+void R3BBunchedFiberCal2Hit::compareTimeStamps(const double top_ns, const double bot_ns, double arrTimeStampSAPMT, double arrTimeStampMAPMT, int step_timeStamps) {
+  //size_t top_i = 0;    
+  //size_t bot_i = 0;
+  //for (int step_timeStamps = 0; step_timeStamps < 1025; step_timeStamps++) {
+    //if (arrTimeStampsPMTs[step_timeStamps] != -100000000.) {
+      //for (; top_i < top_vec.size() && bot_i < bot_vec.size();) {
+        //auto top = top_vec.at(top_i);
+        //auto bot = bot_vec.at(bot_i);
+        //auto top_ns = top->GetTimeLeading_ns();
+        //auto bot_ns = bot->GetTimeLeading_ns();
+        fh_tTopTofWall_vs_tSAPMT               ->Fill(arrTimeStampSAPMT, top_ns); 
+        fh_tBotTofWall_vs_tSAPMT               ->Fill(arrTimeStampSAPMT, bot_ns); 
+        fh_tTopTofWall_vs_tMAPMT               ->Fill(arrTimeStampMAPMT, top_ns); 
+        fh_tBotTofWall_vs_tMAPMT               ->Fill(arrTimeStampMAPMT, bot_ns); 
+        if (step_timeStamps == 256) {
+          fh_tTopTofWall_vs_tSAPMT_oneFib_1of4 ->Fill(arrTimeStampSAPMT, top_ns); 
+          fh_tBotTofWall_vs_tSAPMT_oneFib_1of4 ->Fill(arrTimeStampSAPMT, bot_ns); 
+          fh_tTopTofWall_vs_tMAPMT_oneFib_1of2 ->Fill(arrTimeStampMAPMT, top_ns); 
+          fh_tBotTofWall_vs_tMAPMT_oneFib_1of2 ->Fill(arrTimeStampMAPMT, bot_ns); 
+        }
+        if (step_timeStamps == 257) {
+          fh_tTopTofWall_vs_tSAPMT_oneFib_2of4 ->Fill(arrTimeStampSAPMT, top_ns); 
+          fh_tBotTofWall_vs_tSAPMT_oneFib_2of4 ->Fill(arrTimeStampSAPMT, bot_ns); 
+        }
+        if (step_timeStamps == 768) {
+          fh_tTopTofWall_vs_tSAPMT_oneFib_3of4 ->Fill(arrTimeStampSAPMT, top_ns); 
+          fh_tBotTofWall_vs_tSAPMT_oneFib_3of4 ->Fill(arrTimeStampSAPMT, bot_ns); 
+          fh_tTopTofWall_vs_tMAPMT_oneFib_2of2 ->Fill(arrTimeStampMAPMT, top_ns); 
+          fh_tBotTofWall_vs_tMAPMT_oneFib_2of2 ->Fill(arrTimeStampMAPMT, bot_ns); 
+        }
+        if (step_timeStamps == 769) {
+          fh_tTopTofWall_vs_tSAPMT_oneFib_4of4 ->Fill(arrTimeStampSAPMT, top_ns); 
+          fh_tBotTofWall_vs_tSAPMT_oneFib_4of4 ->Fill(arrTimeStampSAPMT, bot_ns); 
+        }
+      //}
+    //}
+  //}
+}
+
+// end HS_II
+
+ClassImp(R3BBunchedFiberCal2Hit)
+
+
