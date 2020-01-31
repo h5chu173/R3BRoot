@@ -133,8 +133,10 @@ class R3BBunchedFiberCal2Hit : public FairTask
     UInt_t fSubNum;
     UInt_t fChPerSub[2];
     Bool_t fIsCalibrator;
+    Bool_t involveToFWall;
     TClonesArray* fCalItems;
     TClonesArray* fHitItems;
+    TClonesArray* fTofdCalItem;
     R3BBunchedFiberHitPar* fCalPar; /**< Parameter container. */
     R3BBunchedFiberHitPar* fHitPar; /**< Hit parameter container. */
     Int_t fNofHitPars;              /**< Number of modules in parameter file. */
@@ -151,7 +153,7 @@ class R3BBunchedFiberCal2Hit : public FairTask
 
     // histograms concerning ToF
     TH2F* fh_ToF_Fib;
-    TH2F* fh_dTof_WallFib;
+    TH2F* fh_diffTof_WallFib;
 
   public:
     ClassDef(R3BBunchedFiberCal2Hit, 3)

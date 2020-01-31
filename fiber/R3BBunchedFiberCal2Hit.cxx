@@ -63,6 +63,8 @@ R3BBunchedFiberCal2Hit::R3BBunchedFiberCal2Hit(const char* a_name,
     , fh_ToT_ToT()
     , fh_dt_Fib()
     , fnEvents(0)
+    , fTofdCalItem()
+    , involveToFWall()
 
 {
     fChPerSub[0] = a_mapmt_per_sub;
@@ -85,11 +87,26 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     }
     auto name = fName + "Cal";
     fCalItems = (TClonesArray*)mgr->GetObject(name);
+    std::cout<< endl << name << " is now processed" << endl;
     if (!fCalItems)
     {
         LOG(ERROR) << "Branch " << name << " not found.";
         return kERROR;
     }
+
+    // begin HS_II 
+    involveToFWall = true;
+    if (involveToFWall == true) {
+      fTofdCalItem = (TClonesArray*)mgr->GetObject("TofdCal");
+      if (fTofdCalItem) std::cout << "TofdCal is in :) !" << endl;
+      if (!fTofdCalItem) 
+      {
+        LOG(ERROR) << "TofdCal Branch not fround!" << endl;
+        return kERROR;
+      }
+    }
+    // end HS_II
+
     maxevent = mgr->CheckMaxEventNo();
 
     mgr->Register(fName + "Hit", "Land", fHitItems, kTRUE);
@@ -173,9 +190,9 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     // time of flight difference from ToF_Fiber to ToF_Tofwall // HS_II
     chistName = fName + "ToF_Tofwall-ToF_Fib";
     chistTitle = fName + "ToF to fibers of this detector substracted from ToF to Tofwall";
-    fh_dTof_WallFib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.); 
-    fh_dTof_WallFib->GetXaxis()->SetTitle("Fiber number");
-    fh_dTof_WallFib->GetYaxis()->SetTitle("dTof [ns]");
+    fh_diffTof_WallFib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.); 
+    fh_diffTof_WallFib->GetXaxis()->SetTitle("Fiber number");
+    fh_diffTof_WallFib->GetYaxis()->SetTitle("dTof [ns]");
 
     return kSUCCESS;
 }
