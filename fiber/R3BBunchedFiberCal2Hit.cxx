@@ -16,6 +16,9 @@
 #include "R3BBunchedFiberHitData.h"
 #include "R3BBunchedFiberHitPar.h"
 #include "R3BTCalEngine.h"
+#include "/u/schulte/software/R3BRoot/r3bdata/tofData/R3BTofdCalData.h"  // HS_II
+#include "/u/schulte/software/R3BRoot/tof/R3BTofdHitModulePar.h"  // HS_II
+#include "/u/schulte/software/R3BRoot/tof/R3BTofdHitPar.h"  // HS_II 
 #include "TH1F.h"
 #include "TH2F.h"
 #include <TClonesArray.h>
@@ -26,6 +29,8 @@
 #include "FairRtdbRun.h"
 #include "FairRunIdGenerator.h"
 #include "FairRuntimeDb.h"
+
+void UseTofWall(size_t& cal_num);
 
 R3BBunchedFiberCal2Hit::ToT::ToT(R3BBunchedFiberCalData const* a_lead,
                                  R3BBunchedFiberCalData const* a_trail,
@@ -63,8 +68,10 @@ R3BBunchedFiberCal2Hit::R3BBunchedFiberCal2Hit(const char* a_name,
     , fh_ToT_ToT()
     , fh_dt_Fib()
     , fnEvents(0)
-    , fTofdCalItem()
-    , involveToFWall()
+    , involveToFWall(true) // set false if TofWall should not be included   // HS_II
+    , fTofdCalItem()       // HS_II
+    , fTofdHitPar()        // HS_II
+    , fNumOfTofdHitPars()  // HS_II
 
 {
     fChPerSub[0] = a_mapmt_per_sub;
@@ -77,6 +84,40 @@ R3BBunchedFiberCal2Hit::~R3BBunchedFiberCal2Hit()
     delete fCalPar;
 }
 
+// begin HS_II
+void R3BBunchedFiberCal2Hit::IncludeOtherDetectorsFromSetup() {
+  // includes the TofWall's CalItem
+  if (involveToFWall == true) {
+    auto mgr = FairRootManager::Instance();
+    if (!mgr)
+    {
+      LOG(ERROR) << "FairRootManager not found.";
+      return;
+    }
+
+    fTofdCalItem = (TClonesArray*)mgr->GetObject("TofdCal");
+    std::cout << "new fTofdCalItem fetched! EventNr: " << fnEvents << endl;
+    if (fTofdCalItem) std::cout << "TofdCal is in :) !" << endl;
+    if (!fTofdCalItem) 
+    {
+      LOG(ERROR) << "TofdCal Branch not fround!" << endl;
+      return;
+    }
+
+    fTofdHitPar = (R3BTofdHitPar*)FairRuntimeDb::instance()->getContainer("TofdHitPar");
+    if(!fTofdHitPar) {
+      LOG(ERROR) << "No Hitparameter container for TofWall found!";
+      return;
+    }
+    fNumOfTofdHitPars = fTofdHitPar->GetNumModulePar();
+    if (fNumOfTofdHitPars == 0) {
+      LOG(ERROR) << "There are no Hitparameters in container for TofWall!";
+      return;
+    }
+  }
+}
+//end HS_II
+
 InitStatus R3BBunchedFiberCal2Hit::Init()
 {
     auto mgr = FairRootManager::Instance();
@@ -87,25 +128,14 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     }
     auto name = fName + "Cal";
     fCalItems = (TClonesArray*)mgr->GetObject(name);
-    std::cout<< endl << name << " is now processed" << endl;
+    std::cout<< endl << name << " is now in and can be processed" << endl;
     if (!fCalItems)
     {
         LOG(ERROR) << "Branch " << name << " not found.";
         return kERROR;
     }
 
-    // begin HS_II 
-    involveToFWall = true;
-    if (involveToFWall == true) {
-      fTofdCalItem = (TClonesArray*)mgr->GetObject("TofdCal");
-      if (fTofdCalItem) std::cout << "TofdCal is in :) !" << endl;
-      if (!fTofdCalItem) 
-      {
-        LOG(ERROR) << "TofdCal Branch not fround!" << endl;
-        return kERROR;
-      }
-    }
-    // end HS_II
+    if (involveToFWall == true && !fTofdCalItem && !fIsCalibrator) IncludeOtherDetectorsFromSetup();  // HS_II 
 
     maxevent = mgr->CheckMaxEventNo();
 
@@ -180,19 +210,26 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     fh_dt_Fib->GetXaxis()->SetTitle("Fiber number");
     fh_dt_Fib->GetYaxis()->SetTitle("dt / ns");
 
-    // time of flight to Fibs; // HS_II
-    chistName = fName + "ToF_Fib";
-    chistTitle = fName + "ToF to fibers of this detector";
+    // begin HS_II
+    // time of flight to Fibs
+    chistName = fName + "_ToF_Fib";
+    chistTitle = fName + " ToF to fibers of this detector";
     fh_ToF_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.);
     fh_ToF_Fib->GetXaxis()->SetTitle("Fiber Number");
     fh_ToF_Fib->GetYaxis()->SetTitle("Time of Flight [ns]");
+    chistName  = fName + "_ToF_Tofwall";
+    chistTitle = fName + " ToF to TofWall of this hits in this fib det's hits";
+    fh_ToF_TWall = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 100000, 0., 100000.);
+    fh_ToF_TWall->GetXaxis()->SetTitle("Fiber Number");
+    fh_ToF_TWall->GetYaxis()->SetTitle("");
 
-    // time of flight difference from ToF_Fiber to ToF_Tofwall // HS_II
-    chistName = fName + "ToF_Tofwall-ToF_Fib";
-    chistTitle = fName + "ToF to fibers of this detector substracted from ToF to Tofwall";
+    // time of flight difference from ToF_Fiber to ToF_Tofwall
+    chistName = fName + "_ToF_Tofwall-ToF_Fib";
+    chistTitle = fName + " ToF to fibers of this detector substracted from ToF to Tofwall";
     fh_diffTof_WallFib = new TH2F(chistName.Data(), chistTitle.Data(), 2100, 0, 2100, 10000, 0., 10000.); 
     fh_diffTof_WallFib->GetXaxis()->SetTitle("Fiber number");
     fh_diffTof_WallFib->GetYaxis()->SetTitle("dTof [ns]");
+    // end HS_II
 
     return kSUCCESS;
 }
@@ -472,7 +509,9 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
                     Double_t eloss = sqrt(tot_mapmt * tot_spmt);
                     Double_t tof_Fib = (t_mapmt + t_spmt) / 2.; // HS_II
 
-                    fh_ToF_Fib->Fill(fiber_id, tof_Fib);
+                    fh_ToF_Fib->Fill(fiber_id, tof_Fib);  // HS_II
+
+                    if (involveToFWall == true) UseTofWall(cal_num);   // HS_II
 
                     // cout<<"FiberID: "<<fiber_id << "  "<<(double)fiber_id - (double)numFibs<<endl;
                     // cout<<fName<<" x: "<< x << " y: "<< y << " eloss: " << eloss << " t: " << t << endl;
@@ -582,4 +621,48 @@ void R3BBunchedFiberCal2Hit::FinishTask()
     }
 }
 
+// begin HS_II
+
+void R3BBunchedFiberCal2Hit::UseTofWall(size_t& cal_num) {
+  size_t tof_num = fTofdCalItem->GetEntriesFast();
+
+  if (cal_num > 0 && tof_num > 0) {
+    std::cout << endl << "-------------------------------------------------------------------------------------" << endl;
+    std::cout << endl << "Entries at TofWall: " << tof_num <<" Entries from det. " << fName <<": " << cal_num << endl; 
+
+    auto test_fibCal = (R3BBunchedFiberCalData const*)fCalItems->At(0);
+    auto test_tofHit = (R3BTofdCalData*)fTofdCalItem->At(0);
+    auto fibChannel = test_fibCal->GetChannel() - 1;
+    auto tofWallHitInfo = test_tofHit->GetSideId();
+
+    std::cout << "test_fibCal is " << test_fibCal << " and test_tofCal is " << test_tofHit << endl;
+    std::cout << "fib channel is " << fibChannel << " while tofWall channel is " << tofWallHitInfo << endl; 
+    std::cout << "Event number is " << fnEvents<< endl;
+    std::cout << "-------------------------------------------------------------------------------------" << endl << endl;
+  }
+
+  // calculation of tof from TofWall; looked up in and done like in 'R3BTofdCal2Hit.cxx'
+  const double c_range_ns = 2048 * 5;
+  struct Entry
+  {
+    std::vector<R3BTofdCalData*> top;
+    std::vector<R3BTofdCalData*> bot;
+  };
+  std::map<size_t, Entry> bar_map;
+
+  for (auto iter = bar_map.begin(); iter != bar_map.end(); iter++) {
+reset: 
+    auto const& top_vec = it->second.top;
+    auto const& bot_vec = it->second.bot;
+    size_t top_i = 0;    
+    size_t bot_i = 0;
+
+    for (; top_i < top_vec.size() && bot_i < bot_vec.size()) {
+
+    }
+  }
+}
+// end HS_II
+
 ClassImp(R3BBunchedFiberCal2Hit)
+

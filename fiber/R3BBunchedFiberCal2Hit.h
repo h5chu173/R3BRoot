@@ -23,6 +23,8 @@ class TH2F;
 class R3BBunchedFiberCalData;
 class R3BBunchedFiberHitPar;
 class R3BBunchedFiberHitModulePar;
+class R3BTofdHitPar;
+class R3BTofdHitModulePar;
 
 /**
  * Transforms bunched fiber Cal level data to Hit level.
@@ -79,6 +81,14 @@ class R3BBunchedFiberCal2Hit : public FairTask
      */
     virtual ~R3BBunchedFiberCal2Hit();
 
+    // begin HS_II
+    /**
+     * Function to include other detectors via including corresponding CalItems.
+     * Is called by the Framework if the respective bools are true.
+     */
+    virtual void IncludeOtherDetectorsFromSetup();
+    // end HS_II
+
     /**
      * Method for task initialization.
      * This function is called by the framework before
@@ -123,6 +133,14 @@ class R3BBunchedFiberCal2Hit : public FairTask
      */
     virtual UInt_t FixMistake(UInt_t) = 0;
 
+    // begin HS_II
+    /**
+     * Method to use the TofWall data for different ways to filter the fiber detectors' data.
+     * Is called in the Exec routine.
+     */
+    virtual void UseTofWall(size_t& cal_num);
+    // end HS_II
+
   private:
     TString fName;
     Int_t fnEvents;
@@ -133,14 +151,16 @@ class R3BBunchedFiberCal2Hit : public FairTask
     UInt_t fSubNum;
     UInt_t fChPerSub[2];
     Bool_t fIsCalibrator;
-    Bool_t involveToFWall;
     TClonesArray* fCalItems;
     TClonesArray* fHitItems;
-    TClonesArray* fTofdCalItem;
     R3BBunchedFiberHitPar* fCalPar; /**< Parameter container. */
     R3BBunchedFiberHitPar* fHitPar; /**< Hit parameter container. */
     Int_t fNofHitPars;              /**< Number of modules in parameter file. */
     Int_t fNofHitItems;
+    Bool_t involveToFWall;  // HS_II
+    TClonesArray* fTofdCalItem;  // HS_II
+    R3BTofdHitPar* fTofdHitPar;
+    int fNumOfTofdHitPars;
     // [0=MAPMT,1=SPMT][Channel].
     std::vector<Channel> fChannelArray[2];
 
@@ -152,8 +172,12 @@ class R3BBunchedFiberCal2Hit : public FairTask
     TH2F* fh_dt_Fib;
 
     // histograms concerning ToF
+
+    // begin HS_II
     TH2F* fh_ToF_Fib;
     TH2F* fh_diffTof_WallFib;
+    TH2F* fh_ToF_TWall;
+    // end HS_II
 
   public:
     ClassDef(R3BBunchedFiberCal2Hit, 3)
