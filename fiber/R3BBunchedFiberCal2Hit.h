@@ -138,7 +138,7 @@ class R3BBunchedFiberCal2Hit : public FairTask
      * Method to use the TofWall data for different ways to filter the fiber detectors' data.
      * Is called in the Exec routine.
      */
-    virtual void UseTofWall(size_t& cal_num);
+    virtual void UseTofWall(size_t& cal_num, std::vector<double>& FibHitToFs);
     // end HS_II
 
   private:
@@ -176,7 +176,7 @@ class R3BBunchedFiberCal2Hit : public FairTask
     // begin HS_II
     TH2F* fh_ToF_Fib;
     TH2F* fh_diffTof_WallFib;
-    TH2F* fh_ToF_TWall;
+    TH2F* fh_ToF_Wall;
     // end HS_II
 
   public:
