@@ -17,14 +17,14 @@
 #include "FairTask.h"
 #include <R3BTCalEngine.h>
 
+#include <list>
+
 class TH1F;
 class TH2F;
 
 class R3BBunchedFiberCalData;
 class R3BBunchedFiberHitPar;
 class R3BBunchedFiberHitModulePar;
-class R3BTofdHitPar;
-class R3BTofdHitModulePar;
 
 /**
  * Transforms bunched fiber Cal level data to Hit level.
@@ -73,6 +73,8 @@ class R3BBunchedFiberCal2Hit : public FairTask
                            UInt_t,
                            UInt_t,
                            UInt_t,
+                           Bool_t,
+                           Bool_t,
                            Bool_t);
 
     /**
@@ -80,14 +82,6 @@ class R3BBunchedFiberCal2Hit : public FairTask
      * Frees the memory used by the object.
      */
     virtual ~R3BBunchedFiberCal2Hit();
-
-    // begin HS_II
-    /**
-     * Function to include other detectors via including corresponding CalItems.
-     * Is called by the Framework if the respective bools are true.
-     */
-    virtual void IncludeOtherDetectorsFromSetup();
-    // end HS_II
 
     /**
      * Method for task initialization.
@@ -133,34 +127,45 @@ class R3BBunchedFiberCal2Hit : public FairTask
      */
     virtual UInt_t FixMistake(UInt_t) = 0;
 
-    // begin HS_II
+    // begin HS_II_2
     /**
-     * Method to use the TofWall data for different ways to filter the fiber detectors' data.
+     * A new method to use the TofWall data for different ways to filter the fiber detectors' based on the one from A.Kelic-Heil
      * Is called in the Exec routine.
      */
-    virtual void UseTofWall(size_t& cal_num, std::vector<double>& FibHitToFs);
-    // end HS_II
-
+    //virtual void UseTofWall(size_t& cal_num, std::vector<double>& FibHitToFs, double arrTimeStampsPMTs[2]);
+    virtual void UseTofWall_new(std::vector<double>& FibDataVec);
+    
+    // end HS_II_2
+    //
   private:
     TString fName;
     Int_t fnEvents;
     Int_t maxevent;
+    Int_t fnEventsfill = 0;  // HS_II_2
+
+    Double_t tsync_temp[2048]={0};
+    Double_t gain_temp[2048]={10};
+    Bool_t tofdin;
 
     double fClockFreq;
     Direction fDirection;
     UInt_t fSubNum;
     UInt_t fChPerSub[2];
     Bool_t fIsCalibrator;
+    Bool_t fIsGain;  // HS_II_2
+    Bool_t fIsTsynch; // HS_II_2
     TClonesArray* fCalItems;
     TClonesArray* fHitItems;
+    TClonesArray* fTofdHitItems;  // HS_II_2
     R3BBunchedFiberHitPar* fCalPar; /**< Parameter container. */
     R3BBunchedFiberHitPar* fHitPar; /**< Hit parameter container. */
     Int_t fNofHitPars;              /**< Number of modules in parameter file. */
     Int_t fNofHitItems;
-    Bool_t involveToFWall;  // HS_II
-    TClonesArray* fTofdCalItem;  // HS_II
-    R3BTofdHitPar* fTofdHitPar;
-    int fNumOfTofdHitPars;
+    Bool_t involveToFWall;  // HS_II_2
+    Bool_t testTof;  // HS_II_2
+    Bool_t oldHists; // HS_II_2
+    //R3BTofdHitPar* fTofdHitPar;
+    //int fNumOfTofdHitPars;
     // [0=MAPMT,1=SPMT][Channel].
     std::vector<Channel> fChannelArray[2];
 
@@ -172,12 +177,10 @@ class R3BBunchedFiberCal2Hit : public FairTask
     TH2F* fh_dt_Fib;
 
     // histograms concerning ToF
-
-    // begin HS_II
-    TH2F* fh_ToF_Fib;
-    TH2F* fh_diffTof_WallFib;
-    TH2F* fh_ToF_Wall;
-    // end HS_II
+    //HS_II_2
+    TH2F* fh_ToF_FibToTofwall;
+    TH2F* fh_TestTof;
+    // end HS_II_2
 
   public:
     ClassDef(R3BBunchedFiberCal2Hit, 3)
