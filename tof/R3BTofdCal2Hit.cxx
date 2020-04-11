@@ -205,7 +205,7 @@ R3BTofdCal2Hit::~R3BTofdCal2Hit()
     //    if (fhSaturation1) delete fhSaturation1;
     //    if (fhSaturation2) delete fhSaturation2;
     if (fhLosXYP)
-        delete fhLosXYP;
+    //    delete fhLosXYP;
     if (fhChargeLosTofD)
         delete fhChargeLosTofD;
     if (fh_los_pos)
@@ -455,6 +455,7 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
         auto& vec = 1 == hit->GetSideId() ? ret.first->second.top : ret.first->second.bot;
         vec.push_back(hit);
     }
+    //std::vector<double> testToFsVec;   // HS_II, temp
 
     // Find coincident PMT hits.
     // std::cout << "Print:\n";
@@ -490,6 +491,7 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                 // glue zero and the largest values together.
                 dt_mod -= c_range_ns;
             }
+            std::cout << "dt value: " << dt << " and dt_mod value: " << dt_mod << endl;
             // std::cout << top_i << ' ' << bot_i << ": " << top_ns << ' ' << bot_ns << " = " << dt << ' ' <<
             // std::abs(dt_mod) << '\n';
             if (std::abs(dt_mod) < c_bar_coincidence_ns)
@@ -563,6 +565,7 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                 if (ToF - timeP0 > 3000.)
                 {
                     timeP0 = ToF;
+                    //testToFsVec.clear();  // HS_II, temp
                     it = bar_map.begin();
                     for (Int_t i = 0; i <= fNofPlanes; i++)
                     {
@@ -579,6 +582,8 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                     LOG(WARNING) << "Found new first hit -> will reset";
                     goto reset; /// TODO: how to do without goto?
                 }
+                //testToFsVec.push_back(ToF); // HS_II, temp
+                //std::cout << "ToF from R3BTofdCal2Hit.cxx script is: " << ToF << endl;  // HS_II, temp
                 // no LOS in s454: while(ToF < -c_range_ns/2) ToF += c_range_ns;
                 // no LOS in s454: while(ToF >  c_range_ns/2) ToF -= c_range_ns;
 
@@ -692,6 +697,13 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
             }
         }
     }
+    // begin HS_II, temp
+    //size_t entries_in_ToFs_TofWall = testToFsVec.size();
+    //size_t notTheRealEntryNum = 10;
+    //std::cout << "Event number: " << fnEvents << endl;
+    //if (nHits != entries_in_ToFs_TofWall) std::cout << "Buuuuuuuuuuuuuuuulllllllllshit! In ToFs_TofWall are " << entries_in_ToFs_TofWall << " elements while number tof hits is " << nHits << " and by the way the size of bar_map is " << bar_map.size() << endl;
+    //testToFsVec.clear();
+    // end HS_II, temp
 
     // Now all hits in this event are analyzed
 
