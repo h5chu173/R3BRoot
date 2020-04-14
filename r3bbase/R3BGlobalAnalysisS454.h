@@ -19,11 +19,6 @@
 
 #ifndef R3BGLOBALANALYSISS454
 #define R3BGLOBALANALYSISS454
-#define N_PLANE_MAX_TOFD 4
-#define N_PADDLE_MAX_TOFD 50
-#define N_PADDLE_MAX_PTOF 100
-#define N_PSPX_S454 4
-#define N_FIBER_PLOT 1050 // range to plot
 
 #include "FairTask.h"
 #include <array>
@@ -96,7 +91,8 @@ class R3BGlobalAnalysisS454 : public FairTask
      */
     virtual void FinishTask();
 
-    virtual void Output(Double_t tracker[6], Double_t chi2[2]);
+    virtual void Output1(Double_t tracker[6], Double_t chi2[2]);
+    virtual void Output2(Double_t tracker[6], Double_t chi2[2]);
 
     /**
      * Method for setting the trigger value.
@@ -114,11 +110,36 @@ class R3BGlobalAnalysisS454 : public FairTask
         fsens_IC = sens_IC;
     }
 
+    /**
+     * Methods for setting cuts
+     */
+    inline void SetCuts(Bool_t cuts)
+    {
+        fCuts = cuts;
+    }
+
+    inline void SetGhost(Bool_t ghost)
+    {
+        fGhost = ghost;
+    }
+
+    inline void SetPairs(Bool_t p)
+    {
+        fPairs = p;
+    }
+
+    inline void SetBfield(Int_t B)
+    {
+        fB = B;
+    }
+
   private:
     std::vector<TClonesArray*> fMappedItems;
     std::vector<TClonesArray*> fCalItems;
     std::vector<TClonesArray*> fHitItems;
     TClonesArray* fMCTrack;
+    TClonesArray* fTrack;
+
 
     enum DetectorInstances
     {
@@ -151,7 +172,12 @@ class R3BGlobalAnalysisS454 : public FairTask
     R3BEventHeader* header; /**< Event header. */
     Int_t fTrigger;         /**< Trigger value. */
     Int_t fTpat;
-
+	Bool_t fCuts;
+	Bool_t fGhost;
+	Bool_t fPairs;
+	Int_t fB;
+	Bool_t tracker = true;
+	
     unsigned long long time_start = 0, time = 0;
     unsigned long ic_start = 0, see_start = 0, tofdor_start = 0;
     unsigned long fNEvents = 0, fNEvents_start = 0; /**< Event counter. */
@@ -165,15 +191,27 @@ class R3BGlobalAnalysisS454 : public FairTask
     Double_t counts_IC = 0;
     Double_t counts_TofD = 0;
 
-    Double_t Pxf = 0.;
-    Double_t Pyf = 0.;
-    Double_t Pzf = 0.;
-    Double_t Xf = 0.;
-    Double_t Yf = 0.;
-    Double_t Zf = 0.;
-    Double_t Tf = 0.;
-    Double_t Pf_tot = 0.;
-
+	Double_t XHe, YHe, ZHe, XC, YC, ZC;	
+	Double_t pHex, pHey, pHez, pCx, pCy, pCz;
+	Double_t Pxf, Pyf, Pzf, Xf, Yf, Zf, Pf_tot;
+	Double_t amu = 931.49410242;
+//	Double_t mHe = 4.00260325413*amu;
+//	Double_t mC = 12. * amu;
+	Double_t mHe = 3727.409;
+	Double_t mC = 11174.950;
+	Double_t mO = 16. * amu;
+	
+	
+	Int_t Q = 0;
+	Double_t tPrev[10];
+	Int_t detPrev[10];
+	
+	Int_t counter1 = 0;
+	Int_t counter2 = 0;
+	Int_t counter3 = 0;
+	Int_t counter4 = 0;
+	Int_t countdet;
+	
     UInt_t num_spills = 0;
 
     TH1F* fh_Tpat;
@@ -183,38 +221,58 @@ class R3BGlobalAnalysisS454 : public FairTask
     TH1F* fh_TOFDOR;
 
     TH2F* fh_xy_Fib[NOF_FIB_DET];
-    TH1F* fh_fibers_Fib[NOF_FIB_DET];
-    TH1F* fh_fiber_Fib[NOF_FIB_DET];
+    TH2F* fh_xy_Fib_ac[NOF_FIB_DET];
     TH1F* fh_mult_Fib[NOF_FIB_DET];
+    TH1F* fh_mult_Fib_ac[NOF_FIB_DET];
     TH2F* fh_Fib_ToF[NOF_FIB_DET];
-    TH1F* fh_xpos_Fib[NOF_FIB_DET];
-    TH1F* fh_ypos_Fib[NOF_FIB_DET];
-
-    TH2F* fh_time_Fib[NOF_FIB_DET];
-    TH2F* fh_multihit_m_Fib[NOF_FIB_DET];
-    TH2F* fh_multihit_s_Fib[NOF_FIB_DET];
-    TH2F* fh_ToT_m_Fib[NOF_FIB_DET];
-    TH2F* fh_ToT_s_Fib[NOF_FIB_DET];
+    TH2F* fh_Fib_ToF_ac[NOF_FIB_DET];
+    TH2F* fh_ToT_Fib[NOF_FIB_DET];
+    TH2F* fh_ToT_Fib_ac[NOF_FIB_DET];
     TH2F* fh_Fib_vs_Events[NOF_FIB_DET];
-    TH2F* fh_Fibs_vs_Events[NOF_FIB_DET];
+    TH2F* fh_Fib_vs_Events_ac[NOF_FIB_DET];
     TH2F* fh_Fibs_vs_Tofd[NOF_FIB_DET];
+    TH2F* fh_Fibs_vs_Tofd_ac[NOF_FIB_DET];
+    TH2F* fh_ToF_vs_Events[NOF_FIB_DET];
+    TH2F* fh_ToF_vs_Events_ac[NOF_FIB_DET];
 
-    TH2F* fh_Fib_vs_Fib[NOF_FIB_DET][NOF_FIB_DET];
-    TH2F* fh_Fib_dx[NOF_FIB_DET][NOF_FIB_DET];
+	TH2F* fh_Fib13_vs_Fib11;
+	TH2F* fh_Fib13_vs_Fib11_dx;
+	TH2F* fh_Fib11_vs_Fib3a;
+	TH2F* fh_Fib11_vs_Fib3a_dx;
+	TH2F* fh_Fib10_vs_Fib12;
+	TH2F* fh_Fib10_vs_Fib12_dx;
+	TH2F* fh_Fib12_vs_Fib3b;
+	TH2F* fh_Fib12_vs_Fib3b_dx;
 
     TH2F* fh_Cave_position;
 
     TH2F* fh_xy_tofd;
+    TH2F* fh_xy_tofd_ac;
     TH1F* fh_tofd_charge;
+    TH1F* fh_tofd_charge_ac;
     TH1F* fh_TimePreviousEvent;
     TH1F* fh_tofd_mult;
-
-    TH2F* fh_ToF_vs_events[NOF_FIB_DET];
+    TH1F* fh_tofd_mult_ac;
+	TH2F* fh_tofd_q2_vs_q1;
+	TH2F* fh_tofd_q2_vs_q1_ac;
 
     TH2F* fh_target_xy;
     TH1F* fh_target_px;
     TH1F* fh_target_py;
     TH1F* fh_target_pz;
+    TH1F* fh_target_p;
+    TH1F* fh_chi2;
+    TH1F* fh_px_He;
+    TH1F* fh_py_He;
+    TH1F* fh_pz_He;
+    TH1F* fh_p_He;
+    TH1F* fh_px_C;
+    TH1F* fh_py_C;
+    TH1F* fh_pz_C;
+    TH1F* fh_p_C;
+
+    TH2F* fh_chiy_vs_chix;
+    
 
     TH1F* fh_dx;
     TH1F* fh_dy;
@@ -224,12 +282,33 @@ class R3BGlobalAnalysisS454 : public FairTask
     TH1F* fh_dpz;
     TH1F* fh_dp;
     TH2F* fh_thetax_dpx;
+    TH2F* fh_thetax_dpx_abs;
     TH2F* fh_thetay_dpy;
     TH2F* fh_x_dpx;
     TH2F* fh_y_dpy;
     TH2F* fh_thetax_dpy;
     TH2F* fh_thetay_dpx;
+    TH2F* fh_dpy_dpx;
 
+	TH1F* fh_theta26_simu;
+	TH1F* fh_Erel_simu;
+	TH1F* fh_theta26;
+	TH1F* fh_theta_16O;	
+	TH1F* fh_theta26_cm;	
+	TH1F* fh_phi26_cm;
+	TH1F* fh_theta_4He_cm;
+	TH1F* fh_phi_4He_cm;
+	TH1F* fh_theta_12C_cm;
+	TH1F* fh_phi_12C_cm;
+	TH1F* fh_theta_16O_cm;
+	TH1F* fh_phi_16O_cm;
+	TH1F* fh_Erel;
+	TH1F* fh_ErelL;
+	TH1F* fh_ErelR;
+
+	TH2F* fh_dErel_vs_x;
+	TH2F* fh_dErel_vs_y;
+	
   public:
     ClassDef(R3BGlobalAnalysisS454, 1)
 };

@@ -61,7 +61,6 @@ R3BTofDigiPar.cxx
 R3BTofDigitizer.cxx
 R3BTof2pDigiPar.cxx
 R3BTof2pDigitizer.cxx  
-#R3BTofUnpack.cxx
 R3BTofdMapped2Cal.cxx
 R3BTofdMapped2CalPar.cxx
 R3BTofdCal2HitPar.cxx
@@ -69,9 +68,16 @@ R3BTofdCal2Histo.cxx
 R3BTofdCal2HistoPar.cxx
 R3BTofdChangePar.cxx
 R3BTofdCal2Hit.cxx
+R3BTofdCal2HitS454.cxx
 R3BTofdHitModulePar.cxx
 R3BTofdHitPar.cxx
+R3BTofd.cxx
 R3BTofdDigitizer.cxx
+R3BTofdDigitizerCal.cxx
+R3BGeoTofd.cxx   
+R3BGeoTofdPar.cxx   
+R3BTofdContFact.cxx 
+R3BTofdDigiPar.cxx
 R3BPtofMapped2CalPar.cxx
 R3BPtofMapped2Cal.cxx
 calibration/R3BPtofCal2HitPar.cxx
@@ -87,6 +93,6 @@ CHANGE_FILE_EXTENSION(*.cxx *.h HEADERS "${SRCS}")
 set(LINKDEF TofLinkDef.h)
 set(LIBRARY_NAME R3BTof)
 set(DEPENDENCIES
-    Spectrum R3Bbase R3BPassive R3BData R3BTCal)
+    Spectrum R3Bbase R3BPassive R3BTracking R3BData R3BTCal)
     
 GENERATE_LIBRARY()

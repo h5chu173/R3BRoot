@@ -334,7 +334,7 @@ InitStatus R3BGlobalAnalysis::Init()
             fh_Fibs_vs_Events[ifibcount]->GetYaxis()->SetTitle("Fiber number");
             fh_Fibs_vs_Events[ifibcount]->GetXaxis()->SetTitle("Event number");
 
-            // hit fiber number vs. TofD position:
+            // hit fiber number vs. TofD x-position:
             fh_Fibs_vs_Tofd[ifibcount] = new TH2F(Form("%s_fib_vs_TofdX", detName),
                                                   Form("%s Fiber # vs. Tofd x-pos", detName),
                                                   200,
@@ -344,9 +344,21 @@ InitStatus R3BGlobalAnalysis::Init()
                                                   0.,
                                                   1100.);
             fh_Fibs_vs_Tofd[ifibcount]->GetYaxis()->SetTitle("Fiber number");
-            fh_Fibs_vs_Tofd[ifibcount]->GetXaxis()->SetTitle("Tofd x-pos number");
+            fh_Fibs_vs_Tofd[ifibcount]->GetXaxis()->SetTitle("Tofd x-pos in cm");
 
-            // hit fiber number vs. TofD position:
+            // hit fiber number vs. TofD y-position:
+            fh_Fibs_vs_Tofd_y[ifibcount] = new TH2F(Form("%s_fib_vs_TofdY", detName),
+                                                    Form("%s Fiber # vs. Tofd y-pos", detName),
+                                                    800,
+                                                    -100,
+                                                    100,
+                                                    1100,
+                                                    0.,
+                                                    1100.);
+            fh_Fibs_vs_Tofd_y[ifibcount]->GetYaxis()->SetTitle("Fiber number");
+            fh_Fibs_vs_Tofd_y[ifibcount]->GetXaxis()->SetTitle("Tofd y-pos in cm");
+
+            // hit fiber number vs. fiber number:
             for (Int_t j = ifibcount + 1; j < NOF_FIB_DET; j++)
             {
                 detName2 = fDetectorNames[DET_FI_FIRST + j];
@@ -547,6 +559,7 @@ void R3BGlobalAnalysis::Exec(Option_t* option)
     Double_t qTofd[16] = { 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. };
     Double_t TofdQ = 0.;
     Double_t TofdX = 0.;
+    Double_t TofdY = 0.;
 
     if (fHitItems.at(DET_TOFD))
     {
@@ -567,7 +580,7 @@ void R3BGlobalAnalysis::Exec(Option_t* option)
                     continue; // should not happen
                 if (ihit > 15)
                 {
-                    cout << "Error, more than 16 hits" << endl;
+                    // cout << "Error, more than 16 hits" << endl;
                     continue;
                 }
                 timeTofd[ihit] = hit->GetTime();
@@ -578,6 +591,7 @@ void R3BGlobalAnalysis::Exec(Option_t* option)
                 {
                     TofdQ = qTofd[ihit];
                     TofdX = xTofd[ihit];
+                    TofdY = yTofd[ihit];
                 }
                 //		    cout<<"ToFD: "<<ihit<<" x: "<< xTofd[ihit] << " y: " << yTofd[ihit]
                 //		        << " q: "<< qTofd[ihit] << " t: "<< timeTofd[ihit] << endl;
@@ -685,9 +699,9 @@ void R3BGlobalAnalysis::Exec(Option_t* option)
             Double_t totMax_MA = 0.;
             Int_t iFibMax_MA = 0;
 
-            Double_t spmtMax;
-            Double_t mapmtMax;
-            Double_t tofMax;
+            Double_t spmtMax = nan("");
+            Double_t mapmtMax = nan("");
+            Double_t tofMax = nan("");
             Double_t y;
             Double_t tof[14] = { 0., 0., 0., 0., 60., 60., 0., 0., 0., 140., 140., 0., 140., 140. };
             Double_t z[14] = { -51., -49., 0., 0., 45., 50., 0., 0., 0., 700., 670., 0., 630., 600. };
@@ -819,6 +833,10 @@ void R3BGlobalAnalysis::Exec(Option_t* option)
                 fh_Fibs_vs_Tofd[ifibcount]->Fill(TofdX, iFibMax);
                 // cout<<"test "<<TofdX<<"  "<<iFibMax<<endl;
             }
+            if (TofdX > 1.4 && TofdX < 2.8)
+            {
+                fh_Fibs_vs_Tofd_y[ifibcount]->Fill(TofdY, iFibMax);
+            }
             fh_Cave_position->Fill(z[ifibcount], x[ifibcount] + xposfib);
 
             if (test)
@@ -883,7 +901,7 @@ void R3BGlobalAnalysis::FinishTask()
     }
     if (fHitItems.at(DET_TOFD))
     {
-        //      fh_tofd_pos->Write();
+        fh_tofd_pos->Write();
         fh_tofd_charge->Write();
         fh_TimePreviousEvent->Write();
         fh_tofd_mult->Write();
@@ -907,6 +925,7 @@ void R3BGlobalAnalysis::FinishTask()
             fh_Fib_vs_Events[ifibcount]->Write();
             fh_Fibs_vs_Events[ifibcount]->Write();
             fh_Fibs_vs_Tofd[ifibcount]->Write();
+            fh_Fibs_vs_Tofd_y[ifibcount]->Write();
             fh_Fib_ToF[ifibcount]->Write();
             fh_ToF_vs_events[ifibcount]->Write();
         }

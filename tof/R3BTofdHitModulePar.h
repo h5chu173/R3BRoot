@@ -1,3 +1,16 @@
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
+
 #ifndef R3BTOFDHITMODULEPAR_H
 #define R3BTOFDHITMODULEPAR_H
 
@@ -68,7 +81,10 @@ class R3BTofdHitModulePar : public FairParGenericSet
     Double_t GetSync() const { return fSync; }
     Double_t GetOffset1() const { return fOffset1; }
     Double_t GetOffset2() const { return fOffset2; }
+    Double_t GetToTOffset1() const { return fToTOffset1; }
+    Double_t GetToTOffset2() const { return fToTOffset2; }
     Double_t GetVeff() const { return fVeff; }
+    Double_t GetLambda() const { return fLambda; }
     Double_t GetPar1a() const { return fPar1a; }
     Double_t GetPar1b() const { return fPar1b; }
     Double_t GetPar1c() const { return fPar1c; }
@@ -80,16 +96,20 @@ class R3BTofdHitModulePar : public FairParGenericSet
     Double_t GetPar1za() const { return fPar1za; }
     Double_t GetPar1zb() const { return fPar1zb; }
     Double_t GetPar1zc() const { return fPar1zc; }
-    Double_t GetPar1walk() const { return fPar1walk; }
-    Double_t GetPar2walk() const { return fPar2walk; }
-    Double_t GetPar3walk() const { return fPar3walk; }
-    Double_t GetPar4walk() const { return fPar4walk; }
-    Double_t GetPar5walk() const { return fPar5walk; }
+    Double_t GetPar1Walk() const { return fPar1walk; }
+    Double_t GetPar2Walk() const { return fPar2walk; }
+    Double_t GetPar3Walk() const { return fPar3walk; }
+    Double_t GetPar4Walk() const { return fPar4walk; }
+    Double_t GetPar5Walk() const { return fPar5walk; }
     void SetPlane(Int_t i) { fPlane = i; }
     void SetPaddle(Int_t i) { fPaddle = i; }
     void SetSync(Double_t t) { fSync = t; }
     void SetOffset1(Double_t t) { fOffset1 = t; }
     void SetOffset2(Double_t t) { fOffset2 = t; }
+    void SetToTOffset1(Double_t t) { fToTOffset1 = t; }
+    void SetToTOffset2(Double_t t) { fToTOffset2 = t; }
+    void SetVeff(Double_t v) { fVeff = v; }
+    void SetLambda(Double_t v) { fLambda = v; }
     void SetPar1a(Double_t par1a) { fPar1a = par1a; }
     void SetPar1b(Double_t par1b) { fPar1b = par1b; }
     void SetPar1c(Double_t par1c) { fPar1c = par1c; }
@@ -101,19 +121,21 @@ class R3BTofdHitModulePar : public FairParGenericSet
     void SetPar1za(Double_t par1za) { fPar1za = par1za; }
     void SetPar1zb(Double_t par1zb) { fPar1zb = par1zb; }
     void SetPar1zc(Double_t par1zc) { fPar1zc = par1zc; }
-    void SetPar1walk(Double_t par1walk) { fPar1walk = par1walk; }
-    void SetPar2walk(Double_t par2walk) { fPar2walk = par2walk; }
-    void SetPar3walk(Double_t par3walk) { fPar3walk = par3walk; }
-    void SetPar4walk(Double_t par4walk) { fPar4walk = par4walk; }
-    void SetPar5walk(Double_t par5walk) { fPar5walk = par5walk; }
-    void SetVeff(Double_t v) { fVeff = v; }
+    void SetPar1Walk(Double_t par1Walk) { fPar1walk = par1Walk; }
+    void SetPar2Walk(Double_t par2Walk) { fPar2walk = par2Walk; }
+    void SetPar3Walk(Double_t par3Walk) { fPar3walk = par3Walk; }
+    void SetPar4Walk(Double_t par4Walk) { fPar4walk = par4Walk; }
+    void SetPar5Walk(Double_t par5Walk) { fPar5walk = par5Walk; }
 
   private:
     Int_t fPlane;      /**< Index of a plane. */
     Int_t fPaddle;     /**< Index of a paddle. */
     Double_t fOffset1; /**< time offset of PM1 */
     Double_t fOffset2; /**< time offset of PM2 */
+    Double_t fToTOffset1; /**< ToT offset of PM1 */
+    Double_t fToTOffset2; /**< ToT offset of PM2 */
     Double_t fVeff;    /**< effective velocity of light in paddle for position determination */
+    Double_t fLambda;  /**< light attenuation in paddle for position determination */
     Double_t fSync;    /**< time offset between paddles */
     Double_t fPar1a, fPar1b, fPar1c, fPar1d;
     Double_t fPar2a, fPar2b, fPar2c, fPar2d;

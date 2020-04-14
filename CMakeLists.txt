@@ -48,8 +48,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules" ${CMAKE_MODULE_PATH})
 Set(CheckSrcDir "${FAIRROOTPATH}/share/fairbase/cmake/checks")
 
 # set cmake policies
-include(FairRootCmakePolicies)
-set_fairroot_cmake_policies()
+cmake_policy(VERSION 3.11...3.14)
 
 find_package(FairRoot)
 
@@ -123,7 +122,15 @@ find_package(HEPMC)
 # Check the compiler and set the compile and link flags
 check_compiler()
 
-#set(CMAKE_CXX_FLAGS -std=c++14)
+if(DEFINED $ENV{WERROR} AND $ENV{WERROR})
+  message(STATUS "Will compile with -Werror. ")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wno-error=sign-compare -Wno-error=reorder -Wno-error=unused-variable -Wno-error=unused-but-set-variable")
+else()
+  if (NOT APPLE)
+    message(STATUS "Set env WERROR to 1 to enable -Werror. If origin/dev compiles on your platform with that option, it is definitly a good idea to do that.")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-sign-compare -Wno-reorder -Wno-unused-variable -Wno-unused-but-set-variable")
+  endif()
+endif()
 
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/lib")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
@@ -170,11 +177,11 @@ unset(Boost_INCLUDE_DIR CACHE)
 unset(Boost_LIBRARY_DIRS CACHE)
 find_package2(PUBLIC Boost
   VERSION 1.67 ${FairMQ_Boost_VERSION}
-  COMPONENTS thread system timer program_options random filesystem chrono exception 
+  COMPONENTS thread system timer program_options random filesystem chrono exception iostreams
 regex serialization log log_setup atomic date_time signals ${FairMQ_Boost_COMPONENTS}
 )
 if(Boost_FOUND)
-    set(Boost_Avail 1)
+  set(Boost_Avail 1)
 else(Boost_FOUND)
     set(Boost_Avail 0)
 endif(Boost_FOUND)
@@ -218,6 +225,9 @@ find_package(ucesb)
 if(ucesb_FOUND)
     set(WITH_UCESB true)
     set(LD_LIBRARY_PATH ${ucesb_LIBRARY_DIR} ${LD_LIBRARY_PATH})
+else()
+  message(WARNING "${BMagenta}No UCESB configured. You will not be able to unpack lmd files. Set UCESB_DIR"
+    " to a ucesb installation to fix this.${CR}")
 endif(ucesb_FOUND)
 
 find_package(EPICS)
@@ -229,6 +239,35 @@ endif(EPICS_FOUND)
 find_package(Atima)
 
 find_package(Garfield)
+
+if(GARFIELD_FOUND)
+    set(WITH_ACTAR true)
+    set(LD_LIBRARY_PATH ${GARFIELD_LIBRARY_DIR} ${LD_LIBRARY_PATH})
+endif(GARFIELD_FOUND)
+
+if(EXISTS "${R3BROOT_SOURCE_DIR}/sofia/")
+    message("Building SOFIA framework...")
+    set(WITH_SOFIA true)
+    add_definitions(-DSOFIA)
+endif(EXISTS "${R3BROOT_SOURCE_DIR}/sofia/")
+
+if(EXISTS "${R3BROOT_SOURCE_DIR}/NeuLAND_DNN/")
+    message("Building NeuLAND DNN framework...")
+    set(WITH_NeuLAND_DNN true)
+    add_definitions(-DNEULAND_DNN)
+endif(EXISTS "${R3BROOT_SOURCE_DIR}/NeuLAND_DNN/")
+
+if(EXISTS "${R3BROOT_SOURCE_DIR}/glad-tpc/")
+    message("Building GLAD-TPC detector...")
+    set(WITH_GTPC true)
+    add_definitions(-DGTPC)
+endif(EXISTS "${R3BROOT_SOURCE_DIR}/glad-tpc/")
+
+if(EXISTS "${R3BROOT_SOURCE_DIR}/frs/")
+    message("Building FRS framework...")
+    set(WITH_FRS true)
+    add_definitions(-DFRS)
+endif(EXISTS "${R3BROOT_SOURCE_DIR}/frs/")
 
 r3b_generate_version_info()
 
@@ -293,7 +332,6 @@ if(NOT MODULE)
     add_subdirectory(sci2)
     add_subdirectory(sci8)
     add_subdirectory(mtof)
-    add_subdirectory(dtof)
     add_subdirectory(tof)
     add_subdirectory(tracker)
     add_subdirectory(startrack)
@@ -312,31 +350,21 @@ if(NOT MODULE)
     add_subdirectory(tcal)
     add_subdirectory(tracking)
     add_subdirectory(tracker_rene)
-    if(GARFIELD_FOUND)
+    if(WITH_ACTAR)
         add_subdirectory(actar)
-        set(LD_LIBRARY_PATH ${GARFIELD_LIBRARY_DIR} ${LD_LIBRARY_PATH})
-    endif(GARFIELD_FOUND)
-
-    if(EXISTS "${R3BROOT_SOURCE_DIR}/sofia/")
-        message("Building SOFIA framework...")
-        set(WITH_SOFIA true)
-        add_definitions(-DSOFIA)
+    endif(WITH_ACTAR)
+    if(WITH_SOFIA)
         add_subdirectory(sofia)
-    endif(EXISTS "${R3BROOT_SOURCE_DIR}/sofia/")
-
-    if(EXISTS "${R3BROOT_SOURCE_DIR}/glad-tpc/")
-        message("Building GLAD-TPC detector...")
-        set(WITH_GTPC true)
-        add_definitions(-DGTPC)
+    endif(WITH_SOFIA)
+    if(WITH_NeuLAND_DNN)
+        add_subdirectory(NeuLAND_DNN)
+    endif(WITH_NeuLAND_DNN)
+    if(WITH_GTPC)
         add_subdirectory(glad-tpc)
-    endif(EXISTS "${R3BROOT_SOURCE_DIR}/glad-tpc/")
-
-    if(EXISTS "${R3BROOT_SOURCE_DIR}/frs/")
-        message("Building FRS framework...")
-        set(WITH_FRS true)
-        add_definitions(-DFRS)
+    endif(WITH_GTPC)
+    if(WITH_FRS)
         add_subdirectory(frs)
-    endif(EXISTS "${R3BROOT_SOURCE_DIR}/frs/")
+    endif(WITH_FRS)
 
 endif(NOT MODULE)
 

@@ -26,7 +26,7 @@
 #include "TH1F.h"
 #include <TRandom.h>
 
-#define MAX_MULT_MUSIC_CAL 10
+#define MAX_MULT_MUSIC_CAL 100
 #define MAX_NB_MUSICANODE 8
 #define MAX_NB_MUSICTREF 2
 
@@ -73,9 +73,11 @@ class R3BMusicMapped2Cal : public FairTask
     Int_t fNumAnodes;
     Int_t fMaxMult;
     Int_t fNumParams;
+    Int_t fNumPosParams;
     Int_t fNumAnodesRef;
     Int_t fMaxSigma;
     TArrayF* CalParams;
+    TArrayF* PosParams;
 
     Int_t mulanode[MAX_NB_MUSICANODE + MAX_NB_MUSICTREF];
     Double_t energy[MAX_MULT_MUSIC_CAL][MAX_NB_MUSICANODE + MAX_NB_MUSICTREF];

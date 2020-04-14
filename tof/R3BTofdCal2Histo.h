@@ -1,7 +1,18 @@
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
 // ----------------------------------------------------------
 // ----- Create histograms for parameters for TOFD      -----
-// -----       Mai 2016 from M.Heil                     -----
-// -----      July 2019 from Lukas Bott                 -----
+// -----     Created July 2019 by L.Bott                -----
 // ----------------------------------------------------------
 
 #ifndef R3BTOFDCAL2HISTO_H
@@ -19,8 +30,9 @@ class TClonesArray;
 class R3BEventHeader;
 class TH1F;
 class TH2F;
-
+#ifdef __CINT__
 #pragma link C++ class R3BTofdHitModulePar + ;
+#endif
 class R3BTofdCal2Histo : public FairTask
 {
 
@@ -117,18 +129,29 @@ class R3BTofdCal2Histo : public FairTask
      */
     inline void SetTofdQ(Double_t Q) { fTofdQ = Q; }
     /**
+     * Method for setting walk correction
+     */
+    inline void SetWalk(Bool_t Walk) { fwalk = Walk; }
+    /**
      * Method for setting charge correction
      */
     inline void SetTofdZ(Bool_t Z) { fTofdZ = Z; }
     /**
-     * Method for setting the y-position of a horizonzal sweep run for calibration of effective velocity of light
+     * Method for using smiley or double exponential charge correction
+     */
+    inline void SetTofdSmiley(Bool_t Smiley) { fTofdSmiley = Smiley; }
+    /**
+     * 
      */
     inline void ReadParaFile(TString file) { fParaFile = file; }
     /**
-     * Method for walk calculation.
+     * old Method for walk calculation.
      */
-    virtual Double_t walk(Double_t Q);
-
+    ///virtual Double_t walk(Double_t Q);
+    /**
+     * new Method for walk calculation.
+     */
+    virtual Double_t walk(Double_t Q, Double_t par1, Double_t par2, Double_t par3, Double_t par4, Double_t par5);
     /**
      * Method for creating histograms.
      */
@@ -149,7 +172,7 @@ class R3BTofdCal2Histo : public FairTask
     UInt_t fPaddlesPerPlane; /**< Number of bars per plane. */
     UInt_t fNofModules;      /**< Total number of modules (=edges) to calibrate */
 
-    Int_t fNEvents;             /**< Event counter. */
+    UInt_t fNEvents;             /**< Event counter. */
     R3BTofdHitPar* fCal_Par;    /**< Parameter container. */
     TClonesArray* fCalItemsLos; /**< Array with cal items. */
     TClonesArray* fCalData;     /**< Array with mapped data - input data. */
@@ -157,23 +180,23 @@ class R3BTofdCal2Histo : public FairTask
     Double_t fClockFreq;        /**< Clock cycle in [ns]. */
     Double_t fTofdY;
     Double_t fTofdQ;
+    Bool_t fwalk;
+    Bool_t fTofdSmiley;
     Bool_t fTofdZ;
     TString fParaFile;
-    Int_t maxevent;
+    UInt_t maxevent;
 
     // arrays of control histograms
     TH2F* fh_tofd_TotPm[N_TOFD_HIT_PLANE_MAX];
     TH2F* fhTdiff[N_TOFD_HIT_PLANE_MAX];
     TH2F* fhTsync[N_TOFD_HIT_PLANE_MAX];
-    TH2F* fhQPm1[N_TOFD_HIT_PLANE_MAX];
-    TH2F* fhQPm2[N_TOFD_HIT_PLANE_MAX];
-    TH1F* fhTotPm1[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH1F* fhTotPm2[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhTot1vsTot2[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    TH2F* fhLogTot1vsLogTot2[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    TH2F* fhSqrtQvsPosToT[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    TH2F* fhQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    TH2F* fhToTvsTofw[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    //TH2F* fhTot1vsTot2[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
     TH2F* fhTot1vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
     TH2F* fhTot2vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhSqrtQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
 
   public:
     ClassDef(R3BTofdCal2Histo, 1)

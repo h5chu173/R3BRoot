@@ -27,8 +27,6 @@
 #pragma link C++ class R3BNeulandNeutron2DPar+;
 #pragma link C++ class R3BNeulandGeoPar+;
 #pragma link C++ class R3BNeulandContFact+;
-#pragma link C++ class R3BNeulandOnlineReconstruction+;
-#pragma link C++ class R3BNeulandOnlineSpectra+;
 #pragma link C++ class R3BNeulandVisualizer+;
 
 #endif

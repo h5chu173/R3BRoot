@@ -32,10 +32,8 @@ using namespace std;
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TTree.h"
-#include <vector>
 
 #include "TString.h"
-#include <bitset>
 
 #include "R3BStartrackRawHit.h"
 
@@ -46,6 +44,10 @@ using namespace std;
 #include "FairRuntimeDb.h"
 
 #include "FairRunOnline.h"
+
+#include <bitset>
+#include <iostream>
+#include <vector>
 
 // Default constructor
 R3BStartrackOrderTS::R3BStartrackOrderTS()
@@ -226,7 +228,7 @@ void R3BStartrackOrderTS::Exec(Option_t* option)
     R3BStartrackRawHit* item;
     R3BStartrackRawHit* item2;
 
-    int difflb, diff45, diff78;
+    int difflb = 0, diff45, diff78;
 
     Int_t nItems = fRawData->GetEntriesFast(); // returns the number of hits in the block
 

@@ -1,3 +1,16 @@
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
+
 #include "R3BTofdHitModulePar.h"
 
 #include "FairLogger.h"
@@ -17,7 +30,10 @@ R3BTofdHitModulePar::R3BTofdHitModulePar(const char* name, const char* title, co
     , fPaddle(0)
     , fOffset1(0)
     , fOffset2(0)
+    , fToTOffset1(0)
+    , fToTOffset2(0)
     , fVeff(0)
+    , fLambda(0)
     , fSync(0)
     , fPar1a(0)
     , fPar1b(0)
@@ -84,11 +100,14 @@ void R3BTofdHitModulePar::printParams()
     LOG(INFO) << "   fPaddle: " << fPaddle;
     LOG(INFO) << "   fOffset1: " << fOffset1;
     LOG(INFO) << "   fOffset2: " << fOffset2;
+    LOG(INFO) << "   fToTOffset1: " << fToTOffset1;
+    LOG(INFO) << "   fToTOffset2: " << fToTOffset2;
+    LOG(INFO) << "   fSync: " << fSync;
     LOG(INFO) << "   fVeff: " << fVeff;
-    LOG(INFO) << "   fParams1: " << fPar1a << "  " << fPar1b << "  " << fPar1c << "  " << fPar1d;
-    LOG(INFO) << "   fParams2: " << fPar2a << "  " << fPar2b << "  " << fPar2c << "  " << fPar2d;
-    LOG(INFO) << "   fSync2: " << fSync;
-    LOG(INFO) << "   fParaZ1: " << fPar1za << "  " << fPar1zb << "  " << fPar1zc;
+    LOG(INFO) << "   fLambda: " << fLambda;
+    LOG(INFO) << "   fDoubleExp1: " << fPar1a << "  " << fPar1b << "  " << fPar1c << "  " << fPar1d;
+    LOG(INFO) << "   fDoubleExp2: " << fPar2a << "  " << fPar2b << "  " << fPar2c << "  " << fPar2d;
+    LOG(INFO) << "   fParaZ: " << fPar1za << "  " << fPar1zb << "  " << fPar1zc;
     LOG(INFO) << "   fParaWalk: " << fPar1walk << "  " << fPar2walk << "  " << fPar3walk << "  " << fPar4walk << "  "
               << fPar5walk;
 }

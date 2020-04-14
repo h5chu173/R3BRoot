@@ -11,6 +11,8 @@
  * or submit itself to any jurisdiction.                                      *
  ******************************************************************************/
 
+// TofdDigitzer 07 aug 2017 created by Alicia Wongel
+
 #include "R3BTofdDigitizer.h"
 #include "FairLogger.h"
 #include "FairRootManager.h"
@@ -41,7 +43,7 @@
 #include <vector>
 
 #include "R3BMCTrack.h"
-#include "R3BTofPoint.h"
+#include "R3BTofdPoint.h"
 
 using namespace std;
 using std::cout;
@@ -52,9 +54,9 @@ R3BTofdDigitizer::R3BTofdDigitizer()
 {
 
     // set default values for smearing
-    fsigma_y = 10.;
-    fsigma_t = 1.;
-    fsigma_ELoss = 0.1;
+    fsigma_y = 0.001;
+    fsigma_t = 0.001;
+    fsigma_ELoss = 0.001;
 }
 
 R3BTofdDigitizer::~R3BTofdDigitizer() {}
@@ -67,7 +69,7 @@ InitStatus R3BTofdDigitizer::Init()
     FairRootManager* ioman = FairRootManager::Instance();
     if (!ioman)
         LOG(fatal) << "Init: No FairRootManager";
-    fTofdPoints = (TClonesArray*)ioman->GetObject("TofPoint");
+    fTofdPoints = (TClonesArray*)ioman->GetObject("TOFdPoint");
     fMCTrack = (TClonesArray*)ioman->GetObject("MCTrack");
 
     // Register output array fTofdHits
@@ -90,39 +92,27 @@ void R3BTofdDigitizer::Exec(Option_t* opt)
 
     Reset();
 
-    // detector parameter
-    Int_t number_layers = 2;   // number of layers
-    Int_t number_paddles = 44; // number of paddles per layer
-
-    Float_t paddle_width = 2.70000;
-    Float_t paddle_thickness = 0.50000;
-    Float_t air_gap_paddles = 0.04;
-    Float_t air_gap_layer = 5.;
-
-    Float_t detector_width = number_paddles * paddle_width + (number_paddles - 1) * air_gap_paddles + paddle_width;
-    Float_t detector_thickness = (number_layers - 1) * air_gap_layer + number_layers * paddle_thickness;
-
-    vector<R3BTofPoint*> vPoints[1000];
+    //
+    vector<R3BTofdPoint*> vPoints[1000];
     Int_t n_entries = fTofdPoints->GetEntries();
     Bool_t ChannelFired[1000] = { kFALSE };
 
-    Float_t X_Pos[1000] = { 0 };
-    Float_t Y_Pos[1000] = { 0 };
-    Float_t Time[1000] = { 0 };
-    Float_t Energy_Loss[1000] = { 0 };
+    Float_t X_Pos[10000] = { 0 };
+    Float_t Y_Pos[10000] = { 0 };
+    Float_t Time[10000] = { 0 };
+    Float_t Energy_Loss[10000] = { 0 };
     Int_t number_paddles_hit = 0;
 
     for (Int_t entry = 0; entry < n_entries; entry++)
     {
 
-        R3BTofPoint* data_element = (R3BTofPoint*)fTofdPoints->At(entry);
+        R3BTofdPoint* data_element = (R3BTofdPoint*)fTofdPoints->At(entry);
 
         Int_t DetectorID = data_element->GetDetectorID();
         Double_t energy_loss = data_element->GetEnergyLoss();
 
-        cout << "det ID " << DetectorID << endl;
         // discard all hits with an energy loss < cut
-        if (energy_loss < 0.01)
+        if (energy_loss < 0.0000001)
             continue;
 
         // add hits to vector
@@ -139,55 +129,76 @@ void R3BTofdDigitizer::Exec(Option_t* opt)
         if (ChannelFired[channel] == kTRUE)
         {
 
-            sort(vPoints[channel].begin(), vPoints[channel].end(), [](const R3BTofPoint* lhs, const R3BTofPoint* rhs) {
-                return lhs->GetTime() < rhs->GetTime();
-            });
+            sort(vPoints[channel].begin(),
+                 vPoints[channel].end(),
+                 [](const R3BTofdPoint* lhs, const R3BTofdPoint* rhs) { return lhs->GetTime() < rhs->GetTime(); });
 
             for (Int_t point = 0; point < vPoints[channel].size(); point++)
             {
 
                 // energy threshold
-                if (vPoints[channel].at(point)->GetEnergyLoss() < 0.01)
+                if (vPoints[channel].at(point)->GetEnergyLoss() < 0.0000001)
                     continue;
                 fHist1->Fill(vPoints[channel].at(point)->GetEnergyLoss());
 
                 if (0 == point || (vPoints[channel].at(point)->GetTime() - MapOfHits[channel]->GetTime()) > 30)
                 { // add new hits
-
                     int layer_label;
                     int paddle_number;
-                    if (channel < number_paddles)
+                    if (channel < 200)
                     {
                         layer_label = 0;
+                        // paddle_number = channel - 101;
                         paddle_number = channel;
                     }
-                    else if (channel - 100 < number_paddles)
+                    else if (channel < 300)
                     {
                         layer_label = 1;
-                        paddle_number = channel - number_paddles * layer_label;
+                        // paddle_number = channel - 201;
+                        paddle_number = channel - 100;
                     }
-
-                    //            Float_t paddle_xposition = -detector_width/2 + paddle_width/2*(1+layer_label) +
-                    //            paddle_number*paddle_width+paddle_number*air_gap_paddles;
 
                     X_Pos[channel] = -detector_width / 2. + paddle_width / 2. * (1 + layer_label) +
                                      paddle_number * paddle_width + paddle_number * air_gap_paddles;
-                    Y_Pos[channel] = vPoints[channel].at(point)->GetYIn() - 0.523976; // get y-position //local
+                    //                    X_Pos[channel] =
+                    //                        -detector_width + paddle_width * (1 + layer_label) + paddle_number *
+                    //                        (paddle_width * 2 + 0.05);
+                    // cout << "Test1: " << X_Pos[channel] << endl;
+                    // X_Pos[channel] = (vPoints[channel].at(point)->GetXIn() + 136.8) * 1.049690808 ;
+                    // cout << "Test2: " << X_Pos[channel] << endl;
+
+                    Y_Pos[channel] = vPoints[channel].at(point)->GetYIn(); // get y-position //local
                     Time[channel] = vPoints[channel].at(point)->GetTime();
                     Energy_Loss[channel] = vPoints[channel].at(point)->GetEnergyLoss();
 
+                    if (Energy_Loss[channel] < 0.03)
+                    {
+                        Energy_Loss[channel] = 2.;
+                    }
+                    else if (Energy_Loss[channel] < 0.08)
+                    {
+                        Energy_Loss[channel] = 6.;
+                    }
+                    else
+                    {
+                        Energy_Loss[channel] = 8.;
+                    }
+
                     // add to HitData and introduce smearing of y-position, time and energy loss
-                    cout << "Hit: ch = " << channel << " paddle = " << paddle_number << " x = " << X_Pos[channel]
+                    cout << "Hit Tofd: ch = " << channel << " paddle = " << paddle_number << " x = " << X_Pos[channel]
                          << " y = " << Y_Pos[channel] << " t = " << Time[channel] << " eloss = " << Energy_Loss[channel]
                          << endl;
+
+                    //                    if(channel < 200)
                     MapOfHits.insert(pair<Int_t, R3BTofdHitData*>(
                         channel,
                         new R3BTofdHitData(0.,
-                                           fRnd->Uniform((X_Pos[channel] - 1.35), (X_Pos[channel] + 1.35)),
-                                           fRnd->Gaus(Y_Pos[channel], fsigma_y),
+                                           // fRnd->Uniform((X_Pos[channel] - 1.35), (X_Pos[channel] + 1.35)),
+                                           X_Pos[channel],
+                                           Y_Pos[channel],
                                            0.,
-                                           fRnd->Gaus(Time[channel], fsigma_t),
-                                           fRnd->Gaus(Energy_Loss[channel], fsigma_ELoss),
+                                           Time[channel],
+                                           Energy_Loss[channel],
                                            channel)));
                 }
 

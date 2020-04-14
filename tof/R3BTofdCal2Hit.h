@@ -1,7 +1,20 @@
-// ------------------------------------------------------------------
-// -----                  R3BTofdCal2Hit                         -----
-// -----            Created May 30th 2016 by M.Heil           -----
-// ------------------------------------------------------------------
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
+// ------------------------------------------------------------
+// -----                 R3BTofdCal2Hit                   -----
+// -----         Created May 30th 2016 by M.Heil          -----
+// -----           Modified Dec 2019 by L.Bott            -----
+// ------------------------------------------------------------
 
 #ifndef R3BTOFDCAL2HIT
 #define R3BTOFDCAL2HIT
@@ -91,20 +104,28 @@ class R3BTofdCal2Hit : public FairTask
      * Method for setting the nuclear charge of main beam
      */
     inline void SetTofdQ(Double_t Q) { fTofdQ = Q; }
+   
+    /**
+     * Method for setting histograms
+     */
+    inline void SetTofdHisto(Bool_t Histo) { fTofdHisto = Histo; }
+    /**
+     * Method for setting y calculation via ToT instead of tdiff
+     */
+    inline void SetTofdTotPos(Bool_t ToTy) { fTofdTotPos = ToTy; }
 
     /**
-     * Method for walk calculation.
+     * Old Method for walk calculation.
      */
-    virtual Double_t walk(Double_t Q);
-
+    ///virtual Double_t walk(Double_t Q);
+    /**
+     * new Method for walk calculation.
+     */
+    virtual Double_t walk(Double_t Q, Double_t par1, Double_t par2, Double_t par3, Double_t par4, Double_t par5);
     /**
      * Method for beta correction.
      */
     virtual Double_t betaCorr(Double_t delta);
-    /**
-     * Method for Eloss correction.
-     */
-    virtual Double_t Eloss(Double_t Q);
     /**
      * Method for calculation of saturation.
      */
@@ -142,62 +163,56 @@ class R3BTofdCal2Hit : public FairTask
     Int_t fTrigger;             /**< Trigger value. */
     Int_t fTpat;
     Double_t fTofdQ;
+    Bool_t fTofdHisto;
+    Bool_t fTofdTotPos;
     UInt_t fnEvents;
     UInt_t fNofPlanes;
     UInt_t fPaddlesPerPlane; /**< Number of paddles per plane. */
-    Int_t maxevent;
+    UInt_t maxevent;
+    UInt_t countloshit;
+    UInt_t wrongtrigger;
+    UInt_t wrongtpat;
+    UInt_t headertpat;
+    UInt_t events_in_cal_level;
+    UInt_t inbarcoincidence;
+    UInt_t countreset;
+    UInt_t hitsbeforereset;
+    UInt_t eventstore;
+    UInt_t incoincidence;
+    UInt_t inaverage12;
+    UInt_t inaverage34;
+    UInt_t singlehit;
+    UInt_t multihit;
+    UInt_t bars_with_multihit;
+    UInt_t events_wo_tofd_hits;
 
     // arrays of control histograms
-    TH2F* fhQ1vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhQ2vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
     TH2F* fhTdiffvsQ[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX * 2 + 1];
-    //	THnSparse* fhQvsQ[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX*2+1];
     TH2F* fhQvsQ[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX * 2 + 1];
+    TH2F* fhQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
     TH2F* fhQvsTof[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhSqrtQvsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhQvsTofw[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-    TH2F* fhQPm1[N_TOFD_HIT_PLANE_MAX];
-    TH2F* fhQPm2[N_TOFD_HIT_PLANE_MAX];
+    TH2F* fhTvsTof[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
+    TH2F* fhToTvsTofw[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
     TH2F* fhQ[N_TOFD_HIT_PLANE_MAX];
     TH2F* fhQM[N_TOFD_HIT_PLANE_MAX];
     TH2F* fhMvsQ[N_TOFD_HIT_PLANE_MAX];
-    // TH2F* fhQvsTp[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX*2+1];
-    TH2F* fhTof[N_TOFD_HIT_PLANE_MAX];
-    TH2F* fhTdvsQ[N_TOFD_HIT_PLANE_MAX];
-
+    TH2F* fhxy[N_TOFD_HIT_PLANE_MAX];
+    TH2F* fhQvsEvent[N_TOFD_HIT_PLANE_MAX];
     TH2F* fhTdiff[N_TOFD_HIT_PLANE_MAX];
-    TH2F* fhTsync[N_TOFD_HIT_PLANE_MAX];
-
-    /*
-        TH2F* fhTotPm1vsTotPm2[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-        TH2F* fhTotPm1satvsTotPm2sat[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-        TH2F* fhTot1vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-        TH2F* fhTot2vsPos[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX];
-        TH2F* fhPos[N_TOFD_HIT_PLANE_MAX];
-        TH2F* fhTotPm1[N_TOFD_HIT_PLANE_MAX];
-        TH2F* fhTotPm2[N_TOFD_HIT_PLANE_MAX];
-        TH2F* fhTotPm1Sat[N_TOFD_HIT_PLANE_MAX];
-        TH2F* fhTotPm2Sat[N_TOFD_HIT_PLANE_MAX];
-    */
-
-    TH2F* fhxy;
+    //TH2F* fhTof[N_TOFD_HIT_PLANE_MAX];
+    //TH2F* fhTsync[N_TOFD_HIT_PLANE_MAX];
+    TH2F* fhxy12;
+    TH2F* fhxy34;
+    TH2F* fhxy12tot;
+    TH2F* fhxy34tot;
     TH1F* fhCharge;
-    TH1F* fhTimePB[N_TOFD_HIT_PLANE_MAX][N_TOFD_HIT_PADDLE_MAX * 2 + 1];
-    TH1F* fhTimeP;
-    TH2F* fhChargevsTof;
-    TH2F* fhChargevsPos;
-    TH2F* fhQp12;
-    TH2F* fhQp34;
-    TH2F* fhQp12vsTdiff[N_TOFD_HIT_PADDLE_MAX * 2 + 1];
-
-    //    TH2F* fhSaturation1;
-    //    TH2F* fhSaturation2;
-
     TH2F* fhChargeLosTofD;
-
     TH2F* fhLosXYP;
     TH2F* fh_los_pos;
+    //TH2F* fhChargevsTof;
+    //TH2F* fhChargevsPos;
+    //TH2F* fhQp12;
+    //TH2F* fhQp34;
 
   public:
     ClassDef(R3BTofdCal2Hit, 1)

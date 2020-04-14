@@ -1,6 +1,19 @@
-// ----------------------------------------------------------
-// -----        Create hit parameters for TOFD        -----
-// ----------------------------------------------------------
+/******************************************************************************
+ *   Copyright (C) 2019 GSI Helmholtzzentrum für Schwerionenforschung GmbH    *
+ *   Copyright (C) 2019 Members of R3B Collaboration                          *
+ *                                                                            *
+ *             This software is distributed under the terms of the            *
+ *                 GNU General Public Licence (GPL) version 3,                *
+ *                    copied verbatim in the file "LICENSE".                  *
+ *                                                                            *
+ * In applying this license GSI does not waive the privileges and immunities  *
+ * granted to it by virtue of its status as an Intergovernmental Organization *
+ * or submit itself to any jurisdiction.                                      *
+ ******************************************************************************/
+// ----------------------------------------------------
+// -----      Create hit parameters for TOFD      -----
+// -----        Created Jul 2019 by L.Bott        -----
+// ----------------------------------------------------
 
 #ifndef R3BTOFDCAL2HISTOPAR_H
 #define R3BTOFDCAL2HISTOPAR_H
@@ -18,7 +31,9 @@ class R3BEventHeader;
 class TH1F;
 class TH2F;
 
+#ifdef __CINT__
 #pragma link C++ class R3BTofdHitModulePar + ;
+#endif
 class R3BTofdCal2HistoPar : public FairTask
 {
   public:
@@ -115,6 +130,18 @@ class R3BTofdCal2HistoPar : public FairTask
      */
     inline void SetTofdQ(Double_t Q) { fTofdQ = Q; }
     /**
+     * Method for setting the lower range of ToT for offset calibration
+     */
+    inline void SetTofdTotLow(Double_t TotLow) { fTofdTotLow = TotLow; }
+    /**
+     * Method for setting the upper range of ToT for offset calibration
+     */
+    inline void SetTofdTotHigh(Double_t TotHigh) { fTofdTotHigh = TotHigh; }
+    /**
+     * Method for using smiley or double exponential charge correction
+     */
+    inline void SetTofdSmiley(Bool_t Smiley) { fTofdSmiley = Smiley; }
+    /**
      *
      */
     inline void ReadParaFile(TString file) { fParaFile = file; }
@@ -129,6 +156,11 @@ class R3BTofdCal2HistoPar : public FairTask
     virtual void calcOffset();
 
     /**
+     * Method for calculation of ToT offset.
+     */
+    virtual void calcToTOffset(Double_t TotLow, Double_t TotHigh);
+
+    /**
      * Method for calculation of sync offset between paddles.
      */
     virtual void calcSync();
@@ -139,10 +171,20 @@ class R3BTofdCal2HistoPar : public FairTask
     virtual void calcVeff();
 
     /**
-     * Method for calculation of position dependence of scintillator.
+     * Method for calculation of light attenuation factor.
+     */
+    virtual void calcLambda(Double_t TotLow, Double_t TotHigh);
+
+    /**
+     * Method for calculation of position dependence charge of scintillator.
      */
     virtual void doubleExp(TH2F* histo, Double_t min, Double_t max, Double_t*);
 
+    /**
+     * Method for calculation of position dependent charge of scintillator.
+     */
+    virtual void smiley(TH2F* histo, Double_t min, Double_t max, Double_t*);
+    
     /**
      * Method for calculation of z correction.
      */
@@ -166,6 +208,9 @@ class R3BTofdCal2HistoPar : public FairTask
     Double_t fClockFreq;        /**< Clock cycle in [ns]. */
     Double_t fTofdY;
     Double_t fTofdQ;
+    Double_t fTofdTotLow;
+    Double_t fTofdTotHigh;
+    Bool_t fTofdSmiley;
     TString fParaFile;
     TString fHistoFile;
 
