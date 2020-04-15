@@ -14,9 +14,8 @@
 #include "R3BFi8Cal2Hit.h"
 
 R3BFi8Cal2Hit::R3BFi8Cal2Hit(Bool_t a_is_calibrator, Bool_t a_is_gain, Bool_t a_is_tsync, Int_t a_verbose)
-<<<<<<< HEAD
     : R3BBunchedFiberCal2Hit("Fi8", a_verbose, R3BTCalEngine::CTDC_8_12_FWD_250, VERTICAL, 2, 256, 1, a_is_calibrator, a_is_gain, a_is_tsync)
-=======
+      /*
     : R3BBunchedFiberCal2Hit("Fi8",
                              a_verbose,
                              R3BTCalEngine::CTDC_8_12_FWD_250,
@@ -28,6 +27,7 @@ R3BFi8Cal2Hit::R3BFi8Cal2Hit(Bool_t a_is_calibrator, Bool_t a_is_gain, Bool_t a_
                              a_is_gain,
                              a_is_tsync)
 >>>>>>> 58a3846b9e5f032d678cadf61cb9dd13253d9f98
+*/
 {
 }
 

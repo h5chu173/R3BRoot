@@ -573,11 +573,8 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                 }
                 if (timeP0 == 0.)
                     timeP0 = ToF;
-<<<<<<< HEAD
-                    //testToFsVec.clear();  // HS_II, temp
                     it = bar_map.begin();
                     for (Int_t i = 0; i <= fNofPlanes; i++)
-=======
 
                 if (timeLos == 0)
                 { // no LOS in s454
@@ -596,7 +593,6 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                         ToF += c_range_ns;
                     }
                     if (ToF - timeP0 > 3000.)
->>>>>>> 58a3846b9e5f032d678cadf61cb9dd13253d9f98
                     {
                         timeP0 = ToF;
                         it = bar_map.begin();
@@ -635,13 +631,8 @@ void R3BTofdCal2Hit::Exec(Option_t* option)
                         LOG(DEBUG) << "Shift down\n";
                     }
                 }
-<<<<<<< HEAD
-                //testToFsVec.push_back(ToF); // HS_II, temp
-                //std::cout << "ToF from R3BTofdCal2Hit.cxx script is: " << ToF << endl;  // HS_II, temp
                 // no LOS in s454: while(ToF < -c_range_ns/2) ToF += c_range_ns;
                 // no LOS in s454: while(ToF >  c_range_ns/2) ToF -= c_range_ns;
-=======
->>>>>>> 58a3846b9e5f032d678cadf61cb9dd13253d9f98
 
                 // we increase the number of bars by a factor of 2 in order to compare planes with half bar width
                 // overlap

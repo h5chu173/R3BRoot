@@ -791,7 +791,7 @@ void R3BBunchedFiberCal2Hit::UseTofWall_new(std::vector<double>& FibDataVec) {
     }    
   }    
   if (!FibDataVec.empty()) FibDataVec.clear();
-} 
+} // end function 'UseTofWall_new' 
 // end HS_II_2
 
 ClassImp(R3BBunchedFiberCal2Hit)
