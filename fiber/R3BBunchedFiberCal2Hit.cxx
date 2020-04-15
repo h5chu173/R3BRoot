@@ -860,4 +860,65 @@ void R3BBunchedFiberCal2Hit::MAPMTTriggerMapSet(unsigned const* a_map, size_t a_
     fMAPMTTriggerMap = a_map;
 }
 
+// begin HS_II_2
+void R3BBunchedFiberCal2Hit::UseTofWall_new(std::vector<double>& FibDataVec) {
+  int TofdHits = -1;
+  int tofd_id = -100000;
+  double t_mapmt = -10e8;
+  int fiberId = -1;
+  double tof = -10e8;
+  double t_tofd = 10e8;
+
+  if (tofdin) {
+    auto TofdItems = fTofdHitItems;
+    TofdHits = TofdItems->GetEntriesFast();
+    for (int ihit = 0; ihit < TofdHits; ihit++) {
+      R3BTofdHitData* hitOnTofd = (R3BTofdHitData*)TofdItems->At(ihit);
+      t_tofd = hitOnTofd->GetTime();
+      tofd_id = hitOnTofd->GetDetId();
+
+      for (int iVecEntry = 0; iVecEntry < (FibDataVec.size())/2; iVecEntry++) {
+        fiberId = FibDataVec.at(iVecEntry*2);
+        t_mapmt = FibDataVec.at(iVecEntry*2+1);
+        //ofstream checkData;
+        //checkData.open("/u/schulte/nyx/schulte/data/s454/rootfiles/checkData.txt", ios::out | ios::app);
+        //checkData << "after putting into vector, " <<"fiberId: " << fiberId << " and t_mapmt: " << t_mapmt << endl;
+        //checkData << "---------------------------------------------------------------------------------------------------" << endl;
+        //checkData.close();
+
+        if (tofd_id == 1 || tofd_id == 2) {
+
+          while((t_tofd - t_mapmt) < 2048./2.) {
+            t_mapmt -= 2048.;
+          }
+
+          while((t_tofd - t_mapmt) > 2048./2.) {
+            t_mapmt += 2048.;
+          }
+        }
+        tof = t_tofd - t_mapmt;
+        fh_ToF_FibToTofwall->Fill(fiberId, tof);
+        
+        if (testTof) {
+          fnEventsfill++;
+
+          if (fnEventsfill%1000000 == 0) {
+            Double_t midBin = 0;
+            for (int j = 1; j < 1025; j++) {
+              TH1D* slice = fh_ToF_FibToTofwall->ProjectionY("", j + 1, j + 1, 0);
+              midBin = slice->GetBinCenter(slice->GetMaximumBin());
+              fh_TestTof->Fill(j, midBin);
+            }
+            fh_ToF_FibToTofwall->Reset("ICESM");
+            fnEventsfill = 0;
+            cout << "cleared after 1M events!" << endl;
+          }
+        }
+      }
+    }    
+  }    
+  if (!FibDataVec.empty()) FibDataVec.clear();
+} // end of function 'UseTofWall_new' 
+// end HS_II_2
+
 ClassImp(R3BBunchedFiberCal2Hit)
