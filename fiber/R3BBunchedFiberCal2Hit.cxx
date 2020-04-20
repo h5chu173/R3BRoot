@@ -80,6 +80,9 @@ R3BBunchedFiberCal2Hit::R3BBunchedFiberCal2Hit(const char* a_name,
     , fh_dt_Fib()
     , fh_Fib_ToF()
     , fnEvents(0)
+    , involveToFWall(true)  // HS_II_2
+    , testTof(false)  // HS_II_2
+    , oldHists(false)  // HS_II_2
 
 {
     fChPerSub[0] = a_mapmt_per_sub;
@@ -211,29 +214,30 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
     fh_ToT_MA_Fib->GetYaxis()->SetTitle("ToT / ns");
 
     // ToF Tofd -> Fiber:
-    chistName = fName + "_tof";
-    chistTitle = fName + " ToF to ToFD";
-    fh_Fib_ToF = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 44000, -1100., 1100.);
-    fh_Fib_ToF->GetYaxis()->SetTitle("ToF / ns");
-    fh_Fib_ToF->GetXaxis()->SetTitle("Fiber ID");
+    //chistName = fName + "_tof";
+    //chistTitle = fName + " ToF to ToFD";
+    //fh_Fib_ToF = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 44000, -1100., 1100.);
+    //fh_Fib_ToF->GetYaxis()->SetTitle("ToF / ns");
+    //fh_Fib_ToF->GetXaxis()->SetTitle("Fiber ID");
 
     // Test:
-    chistName = fName + "_test";
-    chistTitle = fName + " Tsync test";
-    fh_Test = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 50, -1024., 1024.);
-    fh_Test->GetYaxis()->SetTitle("Tsync / ns");
-    fh_Test->GetXaxis()->SetTitle("Fiber ID");
+    //chistName = fName + "_test";
+    //chistTitle = fName + " Tsync test";
+    //fh_Test = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 50, -1024., 1024.);
+    //fh_Test->GetYaxis()->SetTitle("Tsync / ns");
+    //fh_Test->GetXaxis()->SetTitle("Fiber ID");
 
-    // ToT single PMT:
-    chistName = fName + "_ToT_SAPMT";
-    chistTitle = fName + " ToT of fibers";
-    fh_ToT_Single_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 100, 0., 100.);
-    fh_ToT_Single_Fib->GetXaxis()->SetTitle("Fiber number");
-    fh_ToT_Single_Fib->GetYaxis()->SetTitle("ToT / ns");
+    if (oldHists) {
+      // ToT single PMT:
+      chistName = fName + "_ToT_SAPMT";
+      chistTitle = fName + " ToT of fibers";
+      fh_ToT_Single_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 100, 0., 100.);
+      fh_ToT_Single_Fib->GetXaxis()->SetTitle("Fiber number");
+      fh_ToT_Single_Fib->GetYaxis()->SetTitle("ToT / ns");
 
-    // ToT SAPMT:
-    for (Int_t i = 0; i < 4; i++)
-    {
+      // ToT SAPMT:
+      for (Int_t i = 0; i < 4; i++)
+      {
         char number[15];
         snprintf(number, sizeof(number), "%d", i);
         chistName = fName + "_ToT_SAPMT" + number;
@@ -241,21 +245,41 @@ InitStatus R3BBunchedFiberCal2Hit::Init()
         fh_ToT_s_Fib[i] = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 100, 0., 100.);
         fh_ToT_s_Fib[i]->GetXaxis()->SetTitle("Fiber number");
         fh_ToT_s_Fib[i]->GetYaxis()->SetTitle("ToT / ns");
+      }
+
+      // ToT vs ToT SPMT:
+      chistName = fName + "_ToT_ToT";
+      chistTitle = fName + " ToT vs ToT of single PMTs";
+      fh_ToT_ToT = new TH2F(chistName.Data(), chistTitle.Data(), 1000, 0., 100., 1000, 0., 100.);
+      fh_ToT_ToT->GetXaxis()->SetTitle("SPMT 1");
+      fh_ToT_ToT->GetYaxis()->SetTitle("SPMT 2");
+
+      // time difference SPMT - MAPMT:
+      chistName = fName + "_dt";
+      chistTitle = fName + " dt of fibers";
+      fh_dt_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 1200, -600., 600.);
+      fh_dt_Fib->GetXaxis()->SetTitle("Fiber number");
+      fh_dt_Fib->GetYaxis()->SetTitle("dt / ns");
     }
 
-    // ToT vs ToT SPMT:
-    chistName = fName + "_ToT_ToT";
-    chistTitle = fName + " ToT vs ToT of single PMTs";
-    fh_ToT_ToT = new TH2F(chistName.Data(), chistTitle.Data(), 1000, 0., 100., 1000, 0., 100.);
-    fh_ToT_ToT->GetXaxis()->SetTitle("SPMT 1");
-    fh_ToT_ToT->GetYaxis()->SetTitle("SPMT 2");
+    // begin HS_II_2
+    if (involveToFWall) {
+      // ToF Tofd -> Fiber:
+      chistName = fName + "_ToF_FibToTofwall";
+      chistTitle = fName + " time of flight to TofWall";
+      fh_ToF_FibToTofwall = new TH2F(chistName.Data(), chistTitle.Data(), 1050, 0, 1050., 2200, -1100., 1100.);
+      fh_ToF_FibToTofwall->GetXaxis()->SetTitle("fiber number");
+      fh_ToF_FibToTofwall->GetYaxis()->SetTitle("time of flight [ns]"); 
 
-    // time difference SPMT - MAPMT:
-    chistName = fName + "_dt";
-    chistTitle = fName + " dt of fibers";
-    fh_dt_Fib = new TH2F(chistName.Data(), chistTitle.Data(), 512, 0, 512, 1200, -600., 600.);
-    fh_dt_Fib->GetXaxis()->SetTitle("Fiber number");
-    fh_dt_Fib->GetYaxis()->SetTitle("dt / ns");
+      if (testTof) {
+        chistName = fName + "_TestTheTof";
+        chistTitle = fName + ", test the ToF";
+        fh_TestTof = new TH2F(chistName.Data(), chistTitle.Data(), 1050, 0, 1050., 2200, -1100., 1100.);
+        fh_TestTof->GetXaxis()->SetTitle("fiber number"); 
+        fh_TestTof->GetYaxis()->SetTitle("");
+      }
+    }
+    // end HS_II_2
 
     return kSUCCESS;
 }
@@ -297,6 +321,8 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
         counts[i] = 0;
     }
     //  cout<<"multihit"<<endl;
+    
+    std::vector<double> FibDataVec;  // HS_II_2
 
     auto const c_period = 4096e3 / fClockFreq;
     size_t cal_num = fCalItems->GetEntriesFast();
@@ -547,6 +573,7 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
             }
             */
 
+            /*
             // Fill histograms for gain match, and for debugging.
             Int_t nHitsTofd = 0;
             if (tofdin)
@@ -576,7 +603,7 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
                         fnEventsfill += 1;
 
                         fh_Fib_ToF->Fill(fiber_id, tof);
-                        /*
+                        */ /*  // HS_II_2
                             if(fnEventsfill%1000000	== 0){
                                 Double_t mbin = 0;
                                 for(Int_t k=1; k<513; k++){
@@ -588,10 +615,11 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
                                 fnEventsfill = 0.;
                                 cout<<"cleared after 1M events!"<<endl;
                             }
-                        */
+                        */ /*  // HS_II_2
                     }
                 }
             }
+            */
 
             fh_ToT_MA_Fib->Fill(fiber_id, tot_mapmt);
             if (s_mult > 0)
@@ -653,6 +681,9 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
             // Double_t t = t_spmt;
             Double_t t = t_mapmt;
 
+            FibDataVec.push_back(fiber_id);   // every fiber-id entry at place 0 + n*following push_backs'  // HS_II_2
+            FibDataVec.push_back(t_mapmt);    // every t_mapmt entry at place 1 + n*following push_backs'   // HS_II_2
+
             if (fnEvents == 111026)
             {
                 // cout << "FiberID: " << fiber_id << "  " << (double)fiber_id - (double)numFibs << endl;
@@ -672,7 +703,15 @@ void R3BBunchedFiberCal2Hit::Exec(Option_t* option)
             // MH            }
         }
     }
-    fh_ToT_ToT->Fill(s1, s2);
+    if (oldHists) fh_ToT_ToT->Fill(s1, s2);
+
+    //begin HS_II_2
+    if (involveToFWall == true) { 
+      UseTofWall_new(FibDataVec);
+    }
+    if (!FibDataVec.empty()) FibDataVec.clear();
+    //end HS_II_2
+    
     fnEvents++;
 
     // cout<<"end exec"<<endl;
@@ -723,11 +762,17 @@ void R3BBunchedFiberCal2Hit::FinishEvent()
 
 void R3BBunchedFiberCal2Hit::FinishTask()
 {
-    fh_ToT_MA_Fib->Write();
+  fh_ToT_MA_Fib->Write();
+  if (oldHists) {
     fh_ToT_Single_Fib->Write();
     fh_dt_Fib->Write();
-    fh_Fib_ToF->Write();
-    fh_Test->Write();
+  }
+    //fh_Fib_ToF->Write();
+    //fh_Test->Write();
+    if (involveToFWall) {
+      fh_ToF_FibToTofwall->Write();
+      if (testTof) fh_TestTof->Write();
+    }
 
     /*
         fh_69_70->Write();
@@ -779,7 +824,8 @@ void R3BBunchedFiberCal2Hit::FinishTask()
                     if (par->GetGainMA() == 0)
                         par->SetGainMA(gain_temp[i - 1]);
                 }
-                TH1D* proj = fh_Fib_ToF->ProjectionY("", i + 1, i + 1, 0);
+                //TH1D* proj = fh_Fib_ToF->ProjectionY("", i + 1, i + 1, 0);
+                TH1D* proj = fh_ToF_FibToTofwall->ProjectionY("", i + 1, i + 1, 0);
                 // R3BBunchedFiberHitModulePar* par = fCalPar->GetModuleParAt(i);
                 par->SetSync(proj->GetBinCenter(proj->GetMaximumBin()));
 

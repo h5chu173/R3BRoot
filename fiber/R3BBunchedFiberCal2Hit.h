@@ -132,6 +132,14 @@ class R3BBunchedFiberCal2Hit : public FairTask
      */
     virtual UInt_t FixMistake(UInt_t) = 0;
 
+    // begin HS_II_2
+    /**
+     * A new method to use the TofWall data for different ways to filter the fiber detectors' based on the one from A.Kelic-Heil
+     * Is called in the Exec routine.
+     */
+    virtual void UseTofWall_new(std::vector<double>& FibDataVec);
+    // end HS_II_2
+
     /**
      * Can provide an array that lists for every channel (i.e. fiber bunch, not
      * fiber!) the entry in the <name>TriggerCal TClonesArray for trigger
@@ -145,12 +153,16 @@ class R3BBunchedFiberCal2Hit : public FairTask
     Int_t maxevent;
     Int_t fnEventsfill = 0;
 
-	Int_t multi=0;
-	Double_t energy[2048];
-	Int_t counts[2048];
-	Double_t tsync_temp[2048]={0};
-	Double_t  gain_temp[2048]={10};
+    Int_t multi=0;
+    Double_t energy[2048];
+    Int_t counts[2048];
+    Double_t tsync_temp[2048]={0};
+    Double_t  gain_temp[2048]={10};
     Bool_t tofdin;
+
+    Bool_t involveToFWall;  // HS_II_2
+    Bool_t testTof;  // HS_II_2
+    Bool_t oldHists; // HS_II_2
 
     double fClockFreq;
     Direction fDirection;
@@ -203,6 +215,11 @@ class R3BBunchedFiberCal2Hit : public FairTask
     TH2F* fh_69_92;
     TH2F* fh_69_50;
     
+    // begin HS_II_2
+    // histograms concerning ToF
+    TH2F* fh_ToF_FibToTofwall;
+    TH2F* fh_TestTof;
+    // end HS_II_2
     
 
   public:
