@@ -152,6 +152,11 @@ class R3BBunchedFiberCal2Hit : public FairTask
     Int_t fnEvents;
     Int_t maxevent;
     Int_t fnEventsfill = 0;
+    Int_t snapStart;  // HS_II_2
+    Int_t snapEnd;  // HS_II_2
+    Int_t checkThisFibI; //HS_II_2
+    Int_t checkThisFibII; // HS_II_2
+    Int_t checkThisFibIII; // HS_II_2
 
     Int_t multi=0;
     Double_t energy[2048];
@@ -163,6 +168,9 @@ class R3BBunchedFiberCal2Hit : public FairTask
     Bool_t involveToFWall;  // HS_II_2
     Bool_t testTof;  // HS_II_2
     Bool_t oldHists; // HS_II_2
+    Bool_t ToFVsEvSnap; // HS_II_2
+    Bool_t theBigTHF2; // HS_II_2
+    Bool_t ToTMAHists; // HS_II_2
 
     double fClockFreq;
     Direction fDirection;
@@ -185,6 +193,8 @@ class R3BBunchedFiberCal2Hit : public FairTask
 
     // histograms for gain matching
     TH2F* fh_ToT_MA_Fib;
+    TH2F* fh_ToT_MA_Fib_II; // HS_II_2
+    TH2F* fh_ToT_MA_Fib_III; // HS_II_2
     TH2F* fh_ToT_Single_Fib;
     TH2F* fh_ToT_s_Fib[4];
     TH2F* fh_ToT_ToT;
@@ -219,6 +229,15 @@ class R3BBunchedFiberCal2Hit : public FairTask
     // histograms concerning ToF
     TH2F* fh_ToF_FibToTofwall;
     TH2F* fh_TestTof;
+    TH2F* fh_ToF_FiTofdVsEventNr;
+    TH2F* fh_ToF_FTTVsESnap;
+    TH2F* fh_ToF_FTTVsESnap1Fiber;
+    TH2F* fh_ToF_FTTVsESnap1FiberII;
+    TH2F* fh_ToF_FTTVsESnap1FiberIII;
+    TH2F* fh_ToF_FTTVsESnap50Fibers;
+    TH2F* fh_ToF_FTTBandsVsESnap;
+    TH1F* fh_ToF_FTTOneFib;
+    //TH2F* fh_ToF_FTTVsT_MAPMT;
     // end HS_II_2
     
 
